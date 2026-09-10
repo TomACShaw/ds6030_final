@@ -1,3 +1,9 @@
+---
+title: "Shaw EDA"
+author: "Tom Shaw and Gemini"
+format: pdf
+---
+
 # Data Cleaning and Exploratory Data Analysis
 
 ## Setup and Data Loading
@@ -41,7 +47,7 @@ data <- values_raw |>
 stopifnot(nrow(data) == nrow(values_raw))
 
 # Save to "data/processed" for further processing and modeling
-saveRDS(training_data, here("data", "processed", "data_full.rds"))
+saveRDS(training_data, here("data", "processed", "earthquake.rds"))
 ```
 
 
@@ -112,8 +118,7 @@ data |>
   mutate(proportion = n / sum(n))
 ```
 
-The distribution of the outcome is very imbalanced with >50% of the observations in the medium category and <10% in the low category. We will need to ensure careful stratification during data splitting for validation. Next we look at the distribution for numeric variables
-
+The distribution of the outcome is very imbalanced with >50% of the observations in the medium category and <10% in the low category. We will need to ensure careful stratification during data splitting for validation. Next we look at the distribution for categorical variables.
 
 ```{r cat_boxplots}
 df <- data |>
