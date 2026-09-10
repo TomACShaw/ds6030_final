@@ -17,13 +17,18 @@ knitr::opts_chunk$set(echo = TRUE, cache = TRUE, autodep = TRUE,
 
 library(tidyverse)
 library(tidymodels)
+library(here)
+
 library(ggcorrplot)
 library(GGally)
 library(patchwork)
-library(here)        # ensure filepath accuracy across all collaborator machines
 ```
 
 We load the CSV files containing the training feature values and the training labels and join them together for modeling.
+
+```{r}
+source(here::here("shared", "01_data_loading.R"))
+```
 
 ```{r join_tables}
 
