@@ -37,7 +37,10 @@ Thumbs.db
 .quarto/
 
 # Rendered outputs (render locally and commit when finalized)
-reports/*.html
-reports/*.pdf
-reports/*.docx
+*.html
+*.pdf
+*.docx
 .Rproj.user
+
+/.quarto/
+**/*.quarto_ipynb

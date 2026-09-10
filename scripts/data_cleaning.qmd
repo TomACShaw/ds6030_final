@@ -1,0 +1,129 @@
+# Data Cleaning and Exploratory Data Analysis
+
+## Setup and Data Loading
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE, autodep = TRUE,
+  fig.align = "center")
+```
+
+``` {r libraries, message=FALSE, warning=FALSE}
+
+library(tidyverse)
+library(tidymodels)
+library(ggcorrplot)
+library(GGally)
+library(patchwork)
+library(here)        # ensure filepath accuracy across all collaborator machines
+```
+
+We load the CSV files containing the training feature values and the training labels and join them together for modeling.
+
+```{r join_tables}
+
+# Read both CSV files
+values_raw <- read_csv(
+  here("data", "raw", "train_values.csv"),
+  show_col_types = FALSE
+)
+
+labels_raw <- read_csv(
+  here("data", "raw", "train_labels.csv"),
+  show_col_types = FALSE
+)
+
+# Join as tibble
+data <- values_raw |>
+  inner_join(labels_raw, by = "building_id", relationship = "one-to-one") |>
+  as_tibble()
+
+# Throws an error if any rows are dropped
+stopifnot(nrow(data) == nrow(values_raw))
+
+# Save to "data/processed" for further processing and modeling
+saveRDS(training_data, here("data", "processed", "data_full.rds"))
+```
+
+
+
+## EDA and Preprocessing
+
+First, we check for NA values across the dataset:
+
+```{r check_NA}
+c("Total NAs:" = sum(is.na(data)))
+```
+
+There are 0 NA values. Next we change the `damage_grade` outcome variable to a factor with levels "high", "medium", and "low" to improve interpretability. Our outcome of interest is "high"; we are trying to target the most damaged areas to maximize the efficient deployment of reconstruction and mitigation resources.
+
+```{r outcome_to_factor}
+data <- data |>
+  mutate(
+    damage_grade = factor(
+      damage_grade, 
+      levels = c(3, 2, 1), 
+      labels = c("high", "medium", "low")
+    )
+  )
+```
+
+According to the [data dictionary](https://www.drivendata.org/competitions/57/nepal-earthquake/page/136/#features_list), the categorical variables and their possible values are:
+
+- `land_surface_condition` - values n, o, t
+- `foundation_type` - h, i, r, u, w
+- `roof_type` - n, q, x
+- `ground_floor_type` - f, m, v, x, z
+- `other_floor_type` - j, q, s, x
+- `position` - j, o, s, t
+- `plan_configuration` - a, c, d, f, m, n, o, q, s, u
+- `legal_ownership_status` - a, r, v, w
+
+We cast all of these variables as factors:
+
+``` {r cats_to_factors}
+cat_cols <- c(
+  "land_surface_condition",
+  "foundation_type",
+  "roof_type",
+  "ground_floor_type",
+  "other_floor_type",
+  "position",
+  "plan_configuration",
+  "legal_ownership_status"
+)
+
+data <- data |>
+    mutate(
+      across(all_of(cat_cols), as.factor)
+    ) |>
+    glimpse()
+```
+
+
+
+``` {r outcome_distribution}
+data |>
+  ggplot(aes(x = damage_grade)) +
+    geom_bar(color = "black", fill = "steelblue") +
+    labs(x = "Damage Grade", y = "Frequency", title = "Outcome Distribution")
+
+data |>
+  count(damage_grade) |>
+  mutate(proportion = n / sum(n))
+```
+
+The distribution of the outcome is very imbalanced with >50% of the observations in the medium category and <10% in the low category. We will need to ensure careful stratification during data splitting for validation. Next we look at the distribution for numeric variables
+
+
+```{r cat_boxplots}
+df <- data |>
+  select(damage_grade, where(~ is.numeric(.x) && n_distinct(na.omit(.x)) > 2)) |>
+  select(-any_of(c("building_id", "geo_level_1_id", "geo_level_2_id", "geo_level_3_id"))) |>
+  pivot_longer(cols = -damage_grade, names_to = "variable", values_to = "value")
+
+ggplot(df, aes(x = damage_grade, y = value, fill = damage_grade, group = damage_grade)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free", ncol = 3) +
+  scale_fill_manual(values = c("low" = "yellow", "medium" = "orange", "high" = "red"))
+```
+
