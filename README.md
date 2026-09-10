@@ -4,6 +4,7 @@ A repository for the Fa26 UVA DS6030 Group 6 final project, predicting the level
 
 ## Project File Structure
 
+```
 ├── .github/
 │   └── pull_request_template.md    # PR submission checklist and reviewer guidelines
 
@@ -45,3 +46,4 @@ A repository for the Fa26 UVA DS6030 Group 6 final project, predicting the level
 ├── .gitignore                      # Enforces exclusion of data, caches, and binaries
 ├── ds6030_final.Rproj              # Root indicator for RStudio / Positron
 └── README.md                       # Repository overview and execution guide
+```
