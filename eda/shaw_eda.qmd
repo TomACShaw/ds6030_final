@@ -18,7 +18,6 @@ knitr::opts_chunk$set(echo = TRUE, cache = TRUE, autodep = TRUE,
 library(tidyverse)
 library(tidymodels)
 library(here)
-
 library(ggcorrplot)
 library(GGally)
 library(patchwork)
@@ -27,35 +26,8 @@ library(patchwork)
 We load the CSV files containing the training feature values and the training labels and join them together for modeling.
 
 ```{r}
-source(here::here("shared", "01_data_loading.R"))
+source(here::here("shared", "01_data_setup.R"))
 ```
-
-```{r join_tables}
-
-# Read both CSV files
-values_raw <- read_csv(
-  here("data", "raw", "train_values.csv"),
-  show_col_types = FALSE
-)
-
-labels_raw <- read_csv(
-  here("data", "raw", "train_labels.csv"),
-  show_col_types = FALSE
-)
-
-# Join as tibble
-data <- values_raw |>
-  inner_join(labels_raw, by = "building_id", relationship = "one-to-one") |>
-  as_tibble()
-
-# Throws an error if any rows are dropped
-stopifnot(nrow(data) == nrow(values_raw))
-
-# Save to "data/processed" for further processing and modeling
-saveRDS(training_data, here("data", "processed", "earthquake.rds"))
-```
-
-
 
 ## EDA and Preprocessing
 
