@@ -1,0 +1,40 @@
+# Group 6 Final Project Plan
+
+## Preprocessing
+
+
+
+## EDA Observations
+
+
+
+## Training and Validation Impacts
+
+
+
+## Feature Selection
+
+
+
+## Model Selection
+
+1. 
+2. 
+3. 
+4. 
+5. 
+
+## Model Training and Validation
+
+
+
+## Output to Classification Mapping
+
+
+
+## Performance Evaluation
+
+
+
+## Final Model Selection
+

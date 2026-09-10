@@ -1,0 +1,17 @@
+project:
+  title: "ds6030_final"
+  type: default
+
+format:
+  pdf:
+    toc: true
+    number-sections: true
+  html:
+    toc: true
+    number-sections: true
+    embed-resources: true
+
+execute:
+  echo: true
+  warning: false
+  message: false

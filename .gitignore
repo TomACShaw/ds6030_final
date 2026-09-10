@@ -1,0 +1,43 @@
+# History and workspace images
+.Rhistory
+.RData
+.Ruserdata
+*.Rproj.user/
+.positron/
+
+# renv libraries
+renv/library/
+renv/local/
+renv/staging/
+
+# Data and large model caches
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+models/*
+!models/.gitkeep
+*.rds
+*.RData
+*.parquet
+
+# OS-specific files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+[Dd]esktop.ini
+
+# Quarto / RMarkdown rendered outputs and cache
+*_cache/
+*_files/
+.quarto/
+
+# Rendered outputs (render locally and commit when finalized)
+reports/*.html
+reports/*.pdf
+reports/*.docx
+.Rproj.user
