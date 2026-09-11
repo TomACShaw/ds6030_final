@@ -29,7 +29,7 @@ We load the CSV files containing the training feature values and the training la
 source(here::here("shared", "01_data_setup.R"))
 ```
 
-## EDA and Preprocessing
+## EDA
 
 First, we check for NA values across the dataset:
 

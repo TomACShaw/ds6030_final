@@ -2,11 +2,14 @@
 
 ## Preprocessing
 
+The first step of preprocessing the data involved successfully ingesting and combining the feature and outcome CSV files. The next step was converting all categoricals to factors since the tidymodels framework requires them for effective classification engine deployment and proper formatting of dummy variables.
 
+- dummy encoding for categoricals
+- appropriate scaling for KNN/SVM/distance based methods
 
 ## EDA Observations
 
-
+Exploratory data analysis revealed that the outcome classes are very imbalanced, with more than 50% of observations classified as "medium" and less than 10% classified as "low". Careful stratification will be required in the formation of cross-validation folds.
 
 ## Training and Validation Impacts
 
@@ -14,15 +17,16 @@
 
 ## Feature Selection
 
+The three different `geo_level_id` features all provide increasingly granular geographic data specifying the location of each damaged building. 
 
 
 ## Model Selection
 
-1. 
-2. 
-3. 
-4. 
-5. 
+1. Multinomial Logistic Regression (baseline)
+2. Elastic Net Regression (feature selection)
+3. K-Nearest Neighbors (distance-based)
+4. Support Vector Machine (complex decision surface)
+5. XGBoost (ensemble method)
 
 ## Model Training and Validation
 

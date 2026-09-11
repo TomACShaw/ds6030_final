@@ -20,4 +20,4 @@ data <- values_raw |>
 stopifnot(nrow(data) == nrow(values_raw))
 
 # Save to "data/processed" for further processing and modeling
-saveRDS(training_data, here("data", "processed", "earthquake.rds"))
+saveRDS(data, here("data", "processed", "earthquake.rds"))
