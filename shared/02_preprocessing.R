@@ -1,3 +1,6 @@
+set.seed(42)  # global random seed
+
+# Load the full (joined) dataset
 data <- readRDS(here("data", "processed", "earthquake.rds"))
 
 # Convert outcome to a labeled categorical factor

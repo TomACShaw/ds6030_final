@@ -11,6 +11,7 @@ format: pdf
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, cache = TRUE, autodep = TRUE,
   fig.align = "center")
+  set.seed(42)
 ```
 
 ``` {r libraries, message=FALSE, warning=FALSE}

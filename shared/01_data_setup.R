@@ -2,6 +2,8 @@ library(tidyverse)
 library(tidymodels)
 library(here)
 
+set.seed(42)  # global random seed
+
 # --- LOAD AND JOIN CSVs -------------------------------------------------------
 
 # Read both CSV files
