@@ -2,10 +2,8 @@
 
 ## Preprocessing
 
-The first step of preprocessing the data involved successfully ingesting and combining the feature and outcome CSV files. The next step was converting all categoricals to factors since the tidymodels framework requires them for effective classification engine deployment and proper formatting of dummy variables.
+The first step of preprocessing the data involved successfully ingesting and combining the feature and outcome CSV files. The next step was converting all categoricals to factors and dummy encoding them since the tidymodels framework requires them for effective classification engine deployment. We will use the same base recipe for all 5 models but several models like SVM and XGBoost will require further scaling and normalization of the data.
 
-- dummy encoding for categoricals
-- appropriate scaling for KNN/SVM/distance based methods
 
 ## EDA Observations
 
@@ -13,23 +11,26 @@ Exploratory data analysis revealed that the outcome classes are very imbalanced,
 
 ## Training and Validation Impacts
 
-
+THe observations reveal that stratification will be required during k-fold cross-validation to ensure that the outcome distribution is accurately portrayed.
 
 ## Feature Selection
 
-The three different `geo_level_id` features all provide increasingly granular geographic data specifying the location of each damaged building. 
+The three different `geo_level_id` features all provide increasingly granular geographic data specifying the location of each damaged building. Due to the high multicollinearity of these features and the difficulties associated with high-cardinality categorical data we will likely drop levels 2 and 3. We will use either a quick and lean model for initial training (likely random forest or elastic net regression) or an established selection/dimension reduction technique (e.g. RFE, PCA) to empirically evaluate which features contribute the most to predictive performance.
 
 
 ## Model Selection
 
-1. Multinomial Logistic Regression (baseline)
-2. Elastic Net Regression (feature selection)
-3. K-Nearest Neighbors (distance-based)
-4. Support Vector Machine (complex decision surface)
-5. XGBoost (ensemble method)
+1. Alexander - Multinomial Logistic Regression
+2. Gina - Elastic Net Regression
+3. Kristofer - Quadratic Discrminant Analysis 
+4. Tom - Support Vector Machine
+5. Dan - XGBoost
+
+This collection of 5 models provides a variety of model complexity, strength, and style. With logistic regression as the simplest baseline, we will be able to accurately evaluate the strengths and weaknesses of each model family. Elastic net adds significant compelxity to logistic regression but often improves predictive performance. QDA allows for the discovery of the heavily non-linear patterns in the data which often occur in practical data science. An SVM introduces a distance-based method in contrast to the other methods and like QDA, can discover high-dimensional non-linear patterns. We chose XGBoost as our final algorithm because gradient-boosted ensemble methods like XGBoost are legendarily powerful and we expect it to comfortably beat every other method we considered.
 
 ## Model Training and Validation
 
+We will use K-fold cross-validation to validate the models on a separate validation set after training. Limiting the size of the validation set allows us to perform more exhaustive hyperparameter tuning without exploding computation requirements, especially for algorithms that scale poorly like SVM. Non-tuning models will still train on the initial training split to maintain accurate comparability between models.
 
 
 ## Output to Classification Mapping
