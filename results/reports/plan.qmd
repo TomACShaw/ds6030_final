@@ -35,11 +35,12 @@ We will use K-fold cross-validation to validate the models on a separate validat
 
 ## Output to Classification Mapping
 
-
+As of now we plan to use argmax for class assignment, simply assigning the class with the highest probability to each observation since this is generally the industry standard and the simplest to implement. However, the class imbalance introduces a bias towards the majority class and will cause all predictions to skew towards the majority "medium" class which may affect accuracy.
 
 ## Performance Evaluation
 
-
+Models will be evaluated on a variety of metrics including training and test RMSE, MAE, and $R^2$, ROC curves and their associated AUC, and others. These methods apply to all 5 models despite their different output types and allow the models to be fairly compared, as well as being standard interpretable and reportable metrics. 
 
 ## Final Model Selection
 
+The final model will be da best one :)
