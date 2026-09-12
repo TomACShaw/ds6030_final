@@ -21,3 +21,5 @@ stopifnot(nrow(data) == nrow(values_raw))
 
 # Save to "data/processed" for further processing and modeling
 saveRDS(data, here("data", "processed", "earthquake.rds"))
+
+#test comments
