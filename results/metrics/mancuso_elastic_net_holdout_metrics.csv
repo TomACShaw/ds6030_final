@@ -1,0 +1,5 @@
+.metric,.estimator,.estimate,.config
+kap_quad,multiclass,0.4786882939204983,pre0_mod0_post0
+f_meas_micro,micro,0.6695381899810058,pre0_mod0_post0
+accuracy,multiclass,0.6695381899810058,pre0_mod0_post0
+bal_accuracy,macro,0.6677104199148329,pre0_mod0_post0

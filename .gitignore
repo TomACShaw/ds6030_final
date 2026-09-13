@@ -17,6 +17,7 @@ data/processed/*
 !data/processed/.gitkeep
 models/*
 !models/.gitkeep
+!models/*.R
 *.rds
 *.RData
 *.parquet
