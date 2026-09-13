@@ -84,7 +84,7 @@ tracked by Git.
 
 ## AI assistance disclosure
 
-OpenAI Codex was used as a tutoring and coding aid to explain elastic net,
+OpenAI Codex was used as a tutoring aid to explain elastic net,
 structure the initial Tidymodels workflow, debug the implementation, and verify
 the preliminary outputs. Gina Mancuso is responsible for reviewing,
 understanding, and adapting the analysis for the group submission.
