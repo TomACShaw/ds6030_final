@@ -1,0 +1,135 @@
+---
+title: "Richter Earthquake EDA"
+author: "Alexander Chang"
+format:
+  pdf:
+    toc: true
+    number-sections: true
+---
+
+## Data Loading
+
+```{r}
+#| label: setup
+library(tidyverse)
+library(tidymodels)
+library(nnet)
+library(caret)
+
+theme_set(theme_minimal())
+set.seed(6034)
+```
+
+The predictors and labels are in two separate files that must be joined on `building_id`.
+
+```{r}
+#| label: load-data
+values <- read_csv("https://gedeck.github.io/DS-6030/projects/data/richter_earthquake/train_values.csv.gz", show_col_types = FALSE)
+labels <- read_csv("https://gedeck.github.io/DS-6030/projects/data/richter_earthquake/train_labels.csv.gz", show_col_types = FALSE)
+
+df <- values |> inner_join(labels, by = "building_id")
+
+dim(df)
+```
+
+```{r}
+#| label: integrity-checks
+# Confirm the join didn't drop or duplicate rows, and building_id is a true key
+nrow(values)
+nrow(labels)
+nrow(df)
+n_distinct(df$building_id) == nrow(df)
+```
+
+The joined data retain all 260,601 buildings from both source files, and there are no duplicate `building_id` values in the dataframe.
+
+## Missingness, Sentinel Values and Data Distribution
+
+```{r}
+#| label: missingness
+df |>
+  summarise(across(everything(), ~ sum(is.na(.)))) |>
+  pivot_longer(everything(), names_to = "column", values_to = "n_missing") |>
+  filter(n_missing > 0)
+```
+
+No column contains an explicit null value. This does not mean that we have a full and complete dataset though, there could be sentinel values representing missing or unknown data hiding in otherwise valid-looking numeric ranges.
+
+```{r}
+#| label: numeric-summary
+df |>
+  select(count_floors_pre_eq, age, area_percentage, height_percentage, count_families) |>
+  summary()
+```
+
+`count_floors_pre_eq` may have an outlier max value. `age` is quite right skewed (Median of 15 compared to a Mean of 26), with a very high max value. `area_percentage` is slightly right skewed, with a very high max value relative to the quartiles. `height_percentage` may have an outlier max value, and `count_families` may be normally distributed.
+
+```{r}
+#| label: floor count analysis
+df |> 
+  count(count_floors_pre_eq) |> 
+  mutate(percentage = round(n / sum(n) * 100, 1)) |> 
+  arrange(desc(n))
+```
+
+60% of buildings had 2 floors pre-earthquake, with 3 floors at 21% and 1 floor at 15%. Instead of keeping all of the other floor values, we might aggregate those into a 4+ floor category, which would only make up about 3% of the total dataset.
+
+```{r}
+#| label: fig-age-dist
+#| fig-cap: "Age distribution reveals a sentinel spike at age = 995"
+df |>
+  ggplot(aes(x = age)) +
+  geom_histogram(binwidth = 5, boundary = 0) +
+  labs(x = "Building age (years)", y = "Count",
+       title = "Age distribution")
+```
+
+There is a blip near the 1000 year mark, which is very likely a sentinel value, and another blip near 125 years, which may be another sentinel value or just the true upper bound of the distribution.
+
+```{r}
+#| label: age-sentinel-check
+df |> filter(age >= 120) |> count(age) |> arrange(age)
+```
+
+It seems that the ages of buildings are rounded to the nearest 5, so the noticeable spikes around 120, 150, and 200, are likely estimates of age given poor record keeping rather than some kind of special data artifact. Howewver, 995 is very likely a sentinal value representing an unknown value. 
+
+```{r}
+#| label: fig-area-height-outliers
+#| fig-cap: "area_percentage and height_percentage are right-skewed with a long tail of outliers"
+df |>
+  select(area_percentage, height_percentage) |>
+  pivot_longer(everything()) |>
+  ggplot(aes(x = value)) +
+  geom_histogram(bins = 40) +
+  facet_wrap(~name, scales = "free") +
+  labs(x = NULL, y = "Count")
+```
+
+`area_percentage` and `height_percentage` are both right skewed, and there may be some high leverage values that may need to be removed later on.
+
+```{r}
+#| label: count-families
+df |> 
+  count(count_families) |> 
+  mutate(percentage = round(n / sum(n) * 100, 1)) |> 
+  arrange(desc(n))
+```
+
+The vast majority of buildings, 87%, had only 1 family living in them. 8% of buildings had 0 families in them, indicating their non-residential status, and 4% of buildings had 2 families. The remaining 1% of buildings had between 3 through 9 families. Just as with the floors, this field could benefit from collecting the values into a single "2+ families" value.
+
+## Class Imbalance
+```{r}
+#| label: fig-target-dist
+#| fig-cap: "Class distribution of damage_grade"
+df |>
+  count(damage_grade) |>
+  mutate(pct = n / sum(n)) |>
+  ggplot(aes(x = factor(damage_grade), y = n)) +
+  geom_col() +
+  geom_text(aes(label = scales::percent(pct, accuracy = 0.1)), vjust = -0.4) +
+  labs(x = "Damage grade", y = "Number of buildings",
+       title = "Damage grade is imbalanced")
+```
+
+Grade 2 (medium damage) accounts for a bit more than half of buildings, grade 1 (low damage) is the
+rarest class at 10%, and grade 3 (near-total destruction) makes up the remaining 34%. When creating training and test sets, care must be taken to ensure class proportionality.
