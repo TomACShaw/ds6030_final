@@ -55,6 +55,9 @@ not the final group comparison.
 ## Files
 
 - Model: `models/mancuso_elastic_net.R`
+- Correlation-matrix code: `eda/mancuso_correlation.R`
+- Correlation-matrix figure: `results/figures/mancuso_predictor_correlation_matrix.png`
+- Predictor-correlation table: `results/metrics/mancuso_predictor_correlations.csv`
 - Cross-validation metrics: `results/metrics/mancuso_elastic_net_cv_metrics.csv`
 - Holdout metrics: `results/metrics/mancuso_elastic_net_holdout_metrics.csv`
 - Per-class metrics: `results/metrics/mancuso_elastic_net_per_class_metrics.csv`
