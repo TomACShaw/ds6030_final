@@ -4,3 +4,298 @@ author: "Dan Clark"
 format: pdf
 ---
 
+Claude Opus 5 was used to brainstorm ways to turn EDA findings into charts that would show a lot of information in a limited number of pages. 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE, autodep = TRUE,
+  fig.align = "center")
+```
+
+```{r}
+#| warning: FALSE
+#| message: FALSE
+library(tidyverse)
+library(tidymodels)
+library(here)
+library(patchwork)
+```
+
+```{r}
+set.seed(42)
+
+earthquake <- readRDS(here("data", "processed", "earthquake.rds"))
+#dim(earthquake)
+#head(earthquake)
+#glimpse(earthquake)
+```
+
+```{r}
+colSums(is.na(earthquake))
+```
+
+```{r}
+earthquake <- earthquake |>
+  mutate(damage_grade = factor(damage_grade, levels = c(1, 2, 3)))
+
+earthquake_split <- initial_split(earthquake, prop = 0.80, strata = damage_grade)
+
+train_data <- training(earthquake_split)
+holdout_data <- testing(earthquake_split)
+```
+
+### Basic Data Checks
+
+- No missing values were found in any variable.
+- The dataset contains a mix of:
+  - Numeric building characteristics such as `age`, `area_percentage`, and `height_percentage`
+  - Categorical structural variables such as `foundation_type`, `roof_type`, and `plan_configuration`
+  - Binary indicator variables for superstructure and secondary-use characteristics
+  - Three geographic ID variables at different levels of granularity
+- `damage_grade` was converted from numeric values to a categorical factor
+- The three geographic ID variables are stored numerically but represent geographic categories rather than continuous measurements.
+- The data were split into 80% test and 20% holdout sets using stratification by `damage_grade`.
+
+```{r}
+damage_dist <- train_data |>
+  count(damage_grade) |>
+  mutate(percent = 100 * n / sum(n))
+
+ggplot(damage_dist, aes(x = damage_grade, y = percent)) +
+  geom_col() +
+  geom_text(aes(label = paste0(round(percent, 1), "%")), vjust = -0.3) +
+  labs(title = "Distribution of Damage Grade", x = "Damage Grade", y = "Percent of Training Set") +
+  ylim(0, 65)
+```
+
+- Damage grade is imbalanced.
+  - Grade 2 is 56.9% of the training set.
+  - Grade 3 is 33.4%.
+  - Grade 1 is 9.7%.
+
+```{r}
+train_data |>
+  filter(age < 995) |>
+  ggplot(aes(x = damage_grade, y = age)) +
+  geom_boxplot() +
+  labs(title = "Building Age by Damage Grade", subtitle = "Age = 995 excluded from visualization only", x = "Damage Grade", y = "Building Age")
+```
+
+- Building age shows a relationships across damage grade and a large number of outliers. 
+  -There is a large outlier at 995 with 1,123 observations in the training set. Removed it from the chart so it works visually but we will revisit it in each model.
+
+```{r}
+#| fig-width: 7
+#| fig-height: 8
+#| out-width: "100%"
+
+geo1_plot <- train_data |>
+  count(geo_level_1_id, damage_grade) |>
+  group_by(geo_level_1_id) |>
+  mutate(percent = 100 * n / sum(n)) |>
+  ungroup()
+
+geo1_order <- geo1_plot |>
+  filter(damage_grade == "3") |>
+  arrange(percent) |>
+  pull(geo_level_1_id)
+
+geo1_plot <- geo1_plot |>
+  mutate(geo_level_1_id = factor(geo_level_1_id, levels = geo1_order))
+
+ggplot(geo1_plot, aes(x = geo_level_1_id, y = percent, fill = damage_grade)) +
+  geom_col() +
+  coord_flip() +
+  scale_fill_manual(values = c(
+      "1" = "light green",
+      "2" = "orange",
+      "3" = "red")) +
+  labs(title = "Damage Grade Distribution by Geographic Level 1", x = "Geographic Level 1 ID", y = "Percent of Buildings", fill = "Damage Grade")
+```
+
+```{r}
+#| fig-width: 7
+#| fig-height: 8
+#| out-width: "100%"
+
+geo2_largest <- train_data |>
+  count(geo_level_2_id) |>
+  slice_max(n, n = 30) |>
+  pull(geo_level_2_id)
+
+geo2_plot <- train_data |>
+  filter(geo_level_2_id %in% geo2_largest) |>
+  count(geo_level_2_id, damage_grade) |>
+  group_by(geo_level_2_id) |>
+  mutate(percent = 100 * n / sum(n)) |>
+  ungroup()
+
+geo2_order <- geo2_plot |>
+  filter(damage_grade == "3") |>
+  arrange(percent) |>
+  pull(geo_level_2_id)
+
+geo2_plot <- geo2_plot |>
+  mutate(geo_level_2_id = factor(geo_level_2_id, levels = geo2_order))
+
+ggplot(geo2_plot, aes(x = geo_level_2_id, y = percent, fill = damage_grade)) +
+  geom_col() +
+  coord_flip() +
+  scale_fill_manual(values = c(
+      "1" = "light green",
+      "2" = "orange",
+      "3" = "red")) +
+  labs(title = "Damage Grade Distribution by Geographic Level 2",
+       x = "Geographic Level 2 ID",
+       y = "Percent of Buildings",
+       fill = "Damage Grade")
+```
+
+```{r}
+#| fig-width: 7
+#| fig-height: 8
+#| out-width: "100%"
+
+geo3_largest <- train_data |>
+  count(geo_level_3_id) |>
+  slice_max(n, n = 30) |>
+  pull(geo_level_3_id)
+
+geo3_plot <- train_data |>
+  filter(geo_level_3_id %in% geo3_largest) |>
+  count(geo_level_3_id, damage_grade) |>
+  group_by(geo_level_3_id) |>
+  mutate(percent = 100 * n / sum(n)) |>
+  ungroup()
+
+geo3_order <- geo3_plot |>
+  filter(damage_grade == "3") |>
+  arrange(percent) |>
+  pull(geo_level_3_id)
+
+geo3_plot <- geo3_plot |>
+  mutate(geo_level_3_id = factor(geo_level_3_id, levels = geo3_order))
+
+ggplot(geo3_plot, aes(x = geo_level_3_id, y = percent, fill = damage_grade)) +
+  geom_col() +
+  coord_flip() +
+  scale_fill_manual(values = c(
+      "1" = "light green",
+      "2" = "orange",
+      "3" = "red")) +
+  labs(title = "Damage Grade Distribution by Geographic Level 3",
+       x = "Geographic Level 3 ID",
+       y = "Percent of Buildings",
+       fill = "Damage Grade")
+```
+
+
+```{r}
+selected_superstructures <- c(
+  "has_superstructure_rc_engineered",
+  "has_superstructure_rc_non_engineered",
+  "has_superstructure_cement_mortar_brick",
+  "has_superstructure_cement_mortar_stone",
+  "has_superstructure_mud_mortar_stone",
+  "has_superstructure_stone_flag"
+)
+
+superstructure_plot <- train_data |>
+  select(damage_grade,all_of(selected_superstructures)) |>
+  pivot_longer(cols = -damage_grade, names_to = "variable", values_to = "has_feature") |>
+  mutate(has_feature = factor(has_feature, levels = c(0, 1), labels = c("No", "Yes")), variable = recode(variable,
+      "has_superstructure_rc_engineered" = "RC engineered",
+      "has_superstructure_rc_non_engineered" = "RC non-engineered",
+      "has_superstructure_cement_mortar_brick" = "Cement mortar brick",
+      "has_superstructure_cement_mortar_stone" = "Cement mortar stone",
+      "has_superstructure_mud_mortar_stone" = "Mud mortar stone",
+      "has_superstructure_stone_flag" = "Stone flag")) |>
+  count(variable, has_feature, damage_grade) |>
+  group_by(variable, has_feature) |>
+  mutate(percent = 100 * n / sum(n)) |>
+  ungroup()
+
+ggplot(superstructure_plot, aes(x = has_feature, y = percent, fill = damage_grade)) +
+  geom_col() +
+  facet_wrap(~ variable, ncol = 3) +
+  scale_fill_manual(values = c(
+      "1" = "light green",
+      "2" = "orange",
+      "3" = "red")) +
+  labs(title = "Damage Grade by Selected Superstructure Features", y = "Percent of Buildings", fill = "Damage Grade")
+```
+
+```{r}
+selected_structural <- c(
+  "foundation_type",
+  "roof_type",
+  "ground_floor_type",
+  "other_floor_type"
+)
+
+structural_plot <- train_data |>
+  select(damage_grade, all_of(selected_structural)) |>
+  pivot_longer(cols = -damage_grade, names_to = "variable", values_to = "level") |>
+  mutate(variable = recode(variable,
+      "foundation_type" = "Foundation type",
+      "roof_type" = "Roof type",
+      "ground_floor_type" = "Ground floor type",
+      "other_floor_type" = "Other floor type")) |>
+  count(variable, level, damage_grade) |>
+  group_by(variable, level) |>
+  mutate(percent = 100 * n / sum(n)) |>
+  ungroup()
+
+ggplot(structural_plot,
+  aes(x = level, y = percent, fill = damage_grade)) +
+  geom_col() +
+  facet_wrap(~ variable, ncol = 2, scales = "free_x") +
+  scale_fill_manual(values = c(
+      "1" = "light green",
+      "2" = "orange",
+      "3" = "red")) +
+  labs(title = "Damage Grade by Selected Structural Characteristics", x = "Category", y = "Percent of Buildings", fill = "Damage Grade")
+```
+
+## Feature Selection
+
+- Use the EDA and model validation to guide feature selection
+- Remove `building_id` and `has_secondary_use`
+- Use cross-validation to determine if predictors improve performance or not.
+- Geography showed a strong relationship with damage severity.
+- Review predictors with very rare or sparse categories.
+  - `plan_configuration` levels, several detailed secondary-use categories, and sparse `geo_level_3_id` regions.
+
+## Model Selection
+
+One of the models we plan to use is XGBoost. XGBoost is a good fit for this dataset because the EDA suggests nonlinear relationships and potentially important interactions among geographic, structural, and building characteristics. XGBoost is also a tunable model, which allows model complexity to be selected through cross-validation.  
+
+## Training and Validation
+
+- Use 80/20 stratified split:
+- Use n-fold stratified cross-validation 
+- Use the same cross-validation folds across all models 
+- For tunable models (XGBoost, Elastic Net, SVM):
+  - Tune hyperparameters using cross-validation.
+- Monitor performance for each damage grade, not just overall accuracy.
+
+## Converting Model Outputs to Class Assignments
+
+- For models that return predicted probabilities (Multinomial Logistic Regression, Elastic Net, QDA, XGBoost) for all three damage grades we will use the class with the highest probability
+- If cross-validation shows poor results of a particular class look at class-specific thresholds
+
+## Model Evaluation
+
+- Evaluate every model using quadratic weighted kappa 
+- Also show:
+  - F1
+  - Overall accuracy
+  - Per-class precision
+  - Per-class recall/sensitivity
+  - Confusion matrix
+- Compare both the average cross-validation performance and the consistency of performance across folds.
+
+## Final Model Selection
+
+- Compare all models using their cross-validated performance on the same folds.
+- Use the quadratic weighted kappa to select the final model.
+- Use other metrics to ensure the model is not performing well by only predicting the majority class 
