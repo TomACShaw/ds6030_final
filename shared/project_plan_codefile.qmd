@@ -88,6 +88,7 @@ base_recipe <- recipe(damage_grade ~ ., data = train_data) |>
 ```
 
 ``` {r eda}
+#| warning: FALSE
 
 # --- EDA CODE -----------------------------------------------------------------
 colSums(is.na(data))
