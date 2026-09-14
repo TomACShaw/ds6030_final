@@ -47,11 +47,11 @@ base_recipe <- recipe(damage_grade ~ ., data = train_data) |>
 
 # --- SAVE OBJECTS -------------------------------------------------------------
 
-# Save to "data/processed" to ensure identical data loading in each training script
+# Save to "data/processed" to ensure identical data loading in each model script
 save(
   base_recipe,
   folds,
   train_data,
   test_data,
-  file = "data/processed/train_setup.RData"
+  file = "data/processed/split_data.RData"
 )
