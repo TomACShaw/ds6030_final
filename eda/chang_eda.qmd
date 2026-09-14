@@ -133,3 +133,23 @@ df |>
 
 Grade 2 (medium damage) accounts for a bit more than half of buildings, grade 1 (low damage) is the
 rarest class at 10%, and grade 3 (near-total destruction) makes up the remaining 34%. When creating training and test sets, care must be taken to ensure class proportionality.
+
+```{r}
+# Explore distribution of damage grades for age = 995
+ggplot(df |>
+    filter(age == 995), aes(x = damage_grade)) + 
+  geom_histogram(bins = 10) + 
+  labs(title = "Distribution of Damage Grades for age = 995")
+```
+
+It seems that the distribution of damage grades for `age` == 995 somewhat relfects the distribution of the whole dataset, so it is likely that the true age of these buildings varies between young and old.
+
+```{r}
+# Binning ages into 20 year ranges
+df$age_range <- cut(df$age, breaks = seq(0, max(df$age), by = 20))
+ggplot(df, aes(x = age_range)) + 
+  geom_bar() + 
+  labs(title = "Distribution of Ages in 20-Year Ranges")
+```
+
+It may be wise to transform the age variable into bins of 5, 10, or 20 years, considering that there is not likely to be much change between a building that is 5 years old and one that is 6 years old. Binning the variable would decrease the dimensionality of the data, making it easier to visualize and analyze.
