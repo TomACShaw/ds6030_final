@@ -27,7 +27,7 @@ library(patchwork)
 We load the full (joined) dataset. If the data are not available, source the 
 
 ```{r}
-processed_path <- "data/processed/earthquake.rds"
+processed_path <- here::here("data", "processed", "earthquake.rds")
 # split_path <- "data/processed/split_data.RData"
 
 if (!file.exists(processed_path)) {
