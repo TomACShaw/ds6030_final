@@ -1,0 +1,12 @@
+# R package dependencies
+
+tidyverse
+tidymodels
+here
+nnet
+caret
+ggcorrplot
+GGally
+patchwork
+knitr
+scales
