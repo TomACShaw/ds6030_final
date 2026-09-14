@@ -179,9 +179,10 @@ ggplot(geo3_plot, aes(x = geo_level_3_id, y = percent, fill = damage_grade)) +
   geom_col() +
   coord_flip() +
   scale_fill_manual(values = c(
-      "1" = "light green",
-      "2" = "orange",
-      "3" = "red")) +
+  "1" = "#9ECAE1",
+  "2" = "#4292C6",
+  "3" = "#084594"
+)) +
   labs(title = "Damage Grade Distribution by Geographic Level 3",
        x = "Geographic Level 3 ID",
        y = "Percent of Buildings",
@@ -218,9 +219,10 @@ ggplot(superstructure_plot, aes(x = has_feature, y = percent, fill = damage_grad
   geom_col() +
   facet_wrap(~ variable, ncol = 3) +
   scale_fill_manual(values = c(
-      "1" = "light green",
-      "2" = "orange",
-      "3" = "red")) +
+  "1" = "#9ECAE1",
+  "2" = "#4292C6",
+  "3" = "#084594"
+)) +
   labs(title = "Damage Grade by Selected Superstructure Features", y = "Percent of Buildings", fill = "Damage Grade")
 ```
 
@@ -250,9 +252,10 @@ ggplot(structural_plot,
   geom_col() +
   facet_wrap(~ variable, ncol = 2, scales = "free_x") +
   scale_fill_manual(values = c(
-      "1" = "light green",
-      "2" = "orange",
-      "3" = "red")) +
+  "1" = "#9ECAE1",
+  "2" = "#4292C6",
+  "3" = "#084594"
+)) +
   labs(title = "Damage Grade by Selected Structural Characteristics", x = "Category", y = "Percent of Buildings", fill = "Damage Grade")
 ```
 

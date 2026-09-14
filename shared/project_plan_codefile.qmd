@@ -1,4 +1,6 @@
 ```{r data_setup}
+#| message: false
+#| warning: false
 
 library(tidyverse)
 library(tidymodels)
@@ -76,24 +78,105 @@ base_recipe <- recipe(damage_grade ~ ., data = train_data) |>
 # --- SAVE OBJECTS -------------------------------------------------------------
 
 # Save to "data/processed" to ensure identical data loading in each model script
-save(
-  base_recipe,
-  folds,
-  train_data,
-  test_data,
-  file = "data/processed/split_data.RData"
-)
+#save(
+#  base_recipe,
+#  folds,
+#  train_data,
+#  test_data,
+#  file = "data/processed/split_data.RData"
+#)
 ```
 
 ``` {r eda}
 
 # --- EDA CODE -----------------------------------------------------------------
+colSums(is.na(data))
 
+train_data |>
+  ggplot(aes(x = damage_grade)) +
+    geom_bar(color = "black", fill = "steelblue") +
+    geom_text(stat = "count",
+      aes(label = after_stat(
+        paste0(count, " (", round(100 * count / sum(count), 1), "%)"))), vjust = -0.5) +
+    labs(x = "Damage Grade", y = "Frequency", title = "Outcome Distribution")
 
+df <- train_data |>
+  select(damage_grade, where(~ is.numeric(.x) && n_distinct(na.omit(.x)) > 2)) |>
+  select(-any_of(c("building_id", "geo_level_1_id", "geo_level_2_id", "geo_level_3_id"))) |>
+  pivot_longer(cols = -damage_grade, names_to = "variable", values_to = "value")
 
+ggplot(df, aes(x = damage_grade, y = value, fill = damage_grade, group = damage_grade)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free", ncol = 3) +
+  scale_fill_manual(values = c("low" = "yellow", "medium" = "orange", "high" = "red"))
+```
 
+```{r}
+selected_superstructures <- c(
+  "has_superstructure_rc_engineered",
+  "has_superstructure_rc_non_engineered",
+  "has_superstructure_cement_mortar_brick",
+  "has_superstructure_cement_mortar_stone",
+  "has_superstructure_mud_mortar_stone",
+  "has_superstructure_stone_flag"
+)
 
+superstructure_plot <- train_data |>
+  select(damage_grade,all_of(selected_superstructures)) |>
+  pivot_longer(cols = -damage_grade, names_to = "variable", values_to = "has_feature") |>
+  mutate(has_feature = factor(has_feature, levels = c(0, 1), labels = c("No", "Yes")), variable = recode(variable,
+      "has_superstructure_rc_engineered" = "RC engineered",
+      "has_superstructure_rc_non_engineered" = "RC non-engineered",
+      "has_superstructure_cement_mortar_brick" = "Cement mortar brick",
+      "has_superstructure_cement_mortar_stone" = "Cement mortar stone",
+      "has_superstructure_mud_mortar_stone" = "Mud mortar stone",
+      "has_superstructure_stone_flag" = "Stone flag")) |>
+  count(variable, has_feature, damage_grade) |>
+  group_by(variable, has_feature) |>
+  mutate(percent = 100 * n / sum(n)) |>
+  ungroup()
 
+ggplot(superstructure_plot, aes(x = has_feature, y = percent, fill = damage_grade)) +
+  geom_col() +
+  facet_wrap(~ variable, ncol = 3) +
+  scale_fill_manual(values = c("#9ECAE1", "#4292C6", "#084594")) +
+  labs(title = "Damage Grade by Selected Superstructure Features", y = "Percent of Buildings", fill = "Damage Grade")
+```
 
+```{r}
+selected_structural <- c(
+  "foundation_type",
+  "roof_type",
+  "ground_floor_type",
+  "other_floor_type"
+)
+
+structural_plot <- train_data |>
+  select(damage_grade, all_of(selected_structural)) |>
+  pivot_longer(cols = -damage_grade, names_to = "variable", values_to = "level") |>
+  mutate(variable = recode(variable,
+      "foundation_type" = "Foundation type",
+      "roof_type" = "Roof type",
+      "ground_floor_type" = "Ground floor type",
+      "other_floor_type" = "Other floor type")) |>
+  count(variable, level, damage_grade) |>
+  group_by(variable, level) |>
+  mutate(percent = 100 * n / sum(n)) |>
+  ungroup()
+
+ggplot(structural_plot,
+  aes(x = level, y = percent, fill = damage_grade)) +
+  geom_col() +
+  facet_wrap(~ variable, ncol = 2, scales = "free_x") +
+  scale_fill_manual(values = c("#9ECAE1", "#4292C6", "#084594")) +
+  labs(title = "Damage Grade by Selected Structural Characteristics", x = "Category", y = "Percent of Buildings", fill = "Damage Grade")
+```
+
+```{r}
 
 ```
+
+```{r}
+
+```
+
