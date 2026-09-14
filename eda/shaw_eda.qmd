@@ -11,7 +11,7 @@ format: pdf
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, cache = TRUE, autodep = TRUE,
   fig.align = "center")
-  set.seed(42)
+set.seed(42)
 ```
 
 ``` {r libraries, message=FALSE, warning=FALSE}
@@ -24,10 +24,24 @@ library(GGally)
 library(patchwork)
 ```
 
-We load the CSV files containing the training feature values and the training labels and join them together for modeling.
+We load the full (joined) dataset. If the data are not available, source the 
 
 ```{r}
-source(here::here("shared", "01_data_setup.R"))
+processed_path <- "data/processed/earthquake.rds"
+# split_path <- "data/processed/split_data.RData"
+
+if (!file.exists(processed_path)) {
+  message("Processed data missing. Executing 01_data_setup.R...")
+  source(here::here("shared", "01_data_setup.R"))
+}
+
+# if (!file.exists(split_path)) {
+#   message("Split data missing. Executing 02_preprocessing.R...")
+#   source(here::here("shared", "02_preprocessing.R"))
+# }
+
+data <- readRDS(processed_path)
+# load(here::here("data", "processed", "split_data.RData"))
 ```
 
 ## EDA
