@@ -1,0 +1,99 @@
+```{r data_setup}
+
+library(tidyverse)
+library(tidymodels)
+library(here)
+
+set.seed(42)  # global random seed
+
+# --- LOAD AND JOIN CSVs -------------------------------------------------------
+
+# Read both CSV files
+values_raw <- read_csv(here("data", "raw", "train_values.csv"),
+  show_col_types = FALSE)
+
+labels_raw <- read_csv(here("data", "raw", "train_labels.csv"),
+  show_col_types = FALSE)
+
+# Join as tibble
+data <- values_raw |>
+  inner_join(labels_raw, by = "building_id", relationship = "one-to-one") |>
+  as_tibble()
+
+# Throws an error if any rows are dropped
+stopifnot(nrow(data) == nrow(values_raw))
+
+# Save to "data/processed" for further processing and modeling
+saveRDS(data, here("data", "processed", "earthquake.rds"))
+```
+
+``` {r preprocessing}
+
+# --- PREPROCESSING ------------------------------------------------------------
+
+# Load the full (joined) dataset
+data <- readRDS(here("data", "processed", "earthquake.rds"))
+
+# Convert outcome to a labeled categorical factor
+data <- data |>
+  mutate(
+    damage_grade = factor(
+      damage_grade, 
+      levels = c(3, 2, 1), 
+      labels = c("high", "medium", "low"),
+      ordered = TRUE
+    )
+  )
+
+# Convert other categoricals to factors
+data <- data |>
+  mutate(across(c(where(is_character), geo_level_1_id), as.factor))
+
+
+# --- SPLITS -------------------------------------------------------------------
+
+eq_split <- initial_split(data, prop = 0.80, strata = damage_grade)
+train_data <- training(eq_split)
+test_data  <- testing(eq_split)
+
+# 5-fold stratified CV
+folds <- vfold_cv(train_data, v = 5, strata = damage_grade)
+
+
+# --- RECIPE -------------------------------------------------------------------
+
+base_recipe <- recipe(damage_grade ~ ., data = train_data) |>
+  update_role(building_id, new_role = "id") |>
+  step_rm(has_secondary_use, geo_level_2_id, geo_level_3_id) |>
+  step_novel(all_nominal_predictors()) |>
+  step_dummy(all_nominal_predictors(), one_hot = FALSE) |>  # no one_hot prevents multicollinearity
+  step_zv(all_predictors()) |>
+  step_normalize(all_numeric_predictors())
+```
+
+``` {r save_split_data}
+
+# --- SAVE OBJECTS -------------------------------------------------------------
+
+# Save to "data/processed" to ensure identical data loading in each model script
+save(
+  base_recipe,
+  folds,
+  train_data,
+  test_data,
+  file = "data/processed/split_data.RData"
+)
+```
+
+``` {r eda}
+
+# --- EDA CODE -----------------------------------------------------------------
+
+
+
+
+
+
+
+
+```
