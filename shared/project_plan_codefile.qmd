@@ -1,3 +1,9 @@
+Group 6 
+
+Project 3: Richter Earthquake 
+
+Members: Alex Chang (kqu3zr), Dan Clark (gfv6yd), Gina Mancuso (gmv9yu), Kris Miller(jvh9td), Tom Shaw (tas7ap) 
+
 ```{r data_setup}
 #| message: false
 #| warning: false
