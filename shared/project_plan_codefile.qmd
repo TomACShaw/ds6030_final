@@ -180,10 +180,26 @@ ggplot(structural_plot,
 ```
 
 ```{r}
-
+# distribution of count_families
+train_data |> 
+  count(count_families) |> 
+  mutate(percentage = round(n / sum(n) * 100, 1)) |> 
+  arrange(desc(n))
 ```
 
 ```{r}
+# distribution of count_floors_pre_eq
+train_data |> 
+  count(count_floors_pre_eq) |> 
+  mutate(percentage = round(n / sum(n) * 100, 1)) |> 
+  arrange(desc(n))
+```
 
+```{r}
+# Explore distribution of damage grades for age = 995
+ggplot(train_data |>
+    filter(age == 995), aes(x = damage_grade)) + 
+  geom_bar() + 
+  labs(title = "Distribution of Damage Grades for age = 995")
 ```
 
