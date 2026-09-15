@@ -4,8 +4,6 @@ author: "Dan Clark"
 format: pdf
 ---
 
-Claude Opus 5 was used to brainstorm ways to turn EDA findings into charts that would show a lot of information in a limited number of pages. 
-
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, cache = TRUE, autodep = TRUE,
   fig.align = "center")
@@ -258,47 +256,3 @@ ggplot(structural_plot,
 )) +
   labs(title = "Damage Grade by Selected Structural Characteristics", x = "Category", y = "Percent of Buildings", fill = "Damage Grade")
 ```
-
-## Feature Selection
-
-- Use the EDA and model validation to guide feature selection
-- Remove `building_id` and `has_secondary_use`
-- Use cross-validation to determine if predictors improve performance or not.
-- Geography showed a strong relationship with damage severity.
-- Review predictors with very rare or sparse categories.
-  - `plan_configuration` levels, several detailed secondary-use categories, and sparse `geo_level_3_id` regions.
-
-## Model Selection
-
-One of the models we plan to use is XGBoost. XGBoost is a good fit for this dataset because the EDA suggests nonlinear relationships and potentially important interactions among geographic, structural, and building characteristics. XGBoost is also a tunable model, which allows model complexity to be selected through cross-validation.  
-
-## Training and Validation
-
-- Use 80/20 stratified split:
-- Use n-fold stratified cross-validation 
-- Use the same cross-validation folds across all models 
-- For tunable models (XGBoost, Elastic Net, SVM):
-  - Tune hyperparameters using cross-validation.
-- Monitor performance for each damage grade, not just overall accuracy.
-
-## Converting Model Outputs to Class Assignments
-
-- For models that return predicted probabilities (Multinomial Logistic Regression, Elastic Net, QDA, XGBoost) for all three damage grades we will use the class with the highest probability
-- If cross-validation shows poor results of a particular class look at class-specific thresholds
-
-## Model Evaluation
-
-- Evaluate every model using quadratic weighted kappa 
-- Also show:
-  - F1
-  - Overall accuracy
-  - Per-class precision
-  - Per-class recall/sensitivity
-  - Confusion matrix
-- Compare both the average cross-validation performance and the consistency of performance across folds.
-
-## Final Model Selection
-
-- Compare all models using their cross-validated performance on the same folds.
-- Use the quadratic weighted kappa to select the final model.
-- Use other metrics to ensure the model is not performing well by only predicting the majority class 
