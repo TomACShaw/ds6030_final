@@ -119,6 +119,7 @@ ggplot(df, aes(x = damage_grade, y = value, fill = damage_grade, group = damage_
 ```
 
 ```{r}
+# Damage Grade by Selected Superstructure Features
 selected_superstructures <- c(
   "has_superstructure_rc_engineered",
   "has_superstructure_rc_non_engineered",
@@ -151,6 +152,7 @@ ggplot(superstructure_plot, aes(x = has_feature, y = percent, fill = damage_grad
 ```
 
 ```{r}
+# Damage Grade by Selected Structural Characteristics
 selected_structural <- c(
   "foundation_type",
   "roof_type",
@@ -203,3 +205,62 @@ ggplot(train_data |>
   labs(title = "Distribution of Damage Grades for age = 995")
 ```
 
+ 
+```{r}
+# Damage Grade Proportion by Geo Level 1
+geo1_plot <- train_data |>
+  select(damage_grade, geo_level_1_id) |>
+  count(geo_level_1_id, damage_grade) |>
+  group_by(geo_level_1_id) |>
+  mutate(percent = 100 * n / sum(n)) |>
+  ungroup()
+ 
+ggplot(geo1_plot, aes(x = factor(geo_level_1_id), y = percent, fill = damage_grade)) +
+  geom_col() +
+  scale_fill_manual(values = c("#9ECAE1", "#4292C6", "#084594")) +
+  labs(title = "Damage Grade by Region (geo_level_1_id)", x = "geo_level_1_id", y = "Percent of Buildings", fill = "Damage Grade")
+```
+ 
+
+ 
+```{r}
+# Damage Breakdown by Secondary Use
+selected_secondary <- c(
+  "has_secondary_use",
+  "has_secondary_use_agriculture",
+  "has_secondary_use_hotel",
+  "has_secondary_use_rental",
+  "has_secondary_use_institution",
+  "has_secondary_use_school",
+  "has_secondary_use_other"
+)
+ 
+secondary_plot <- train_data |>
+  select(damage_grade, all_of(selected_secondary)) |>
+  pivot_longer(cols = -damage_grade, names_to = "variable",
+    values_to = "has_feature") |>
+  mutate(
+    has_feature = factor(has_feature, levels = c(0, 1),
+      labels = c("No", "Yes")),
+    variable = recode(variable,
+      "has_secondary_use" = "Any secondary use",
+      "has_secondary_use_agriculture" = "Agriculture",
+      "has_secondary_use_hotel" = "Hotel",
+      "has_secondary_use_rental" = "Rental",
+      "has_secondary_use_institution" = "Institution",
+      "has_secondary_use_school" = "School",
+      "has_secondary_use_other" = "Other"),
+    variable = fct_relevel(variable, "Any secondary use")
+  ) |>
+  count(variable, has_feature, damage_grade) |>
+  group_by(variable, has_feature) |>
+  mutate(percent = 100 * n / sum(n)) |>
+  ungroup()
+ 
+ggplot(secondary_plot, aes(x = has_feature, y = percent, fill = damage_grade)) +
+  geom_col() +
+  facet_wrap(~ variable, ncol = 4) +
+  scale_fill_manual(values = c("#9ECAE1", "#4292C6", "#084594")) +
+  labs(title = "Damage Grade by Selected Secondary Use",
+    x = "Has Feature", y = "Percent of Buildings", fill = "Damage Grade")
+```
