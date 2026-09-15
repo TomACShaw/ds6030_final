@@ -138,7 +138,7 @@ rarest class at 10%, and grade 3 (near-total destruction) makes up the remaining
 # Explore distribution of damage grades for age = 995
 ggplot(df |>
     filter(age == 995), aes(x = damage_grade)) + 
-  geom_histogram(bins = 10) + 
+  geom_bar() + 
   labs(title = "Distribution of Damage Grades for age = 995")
 ```
 
