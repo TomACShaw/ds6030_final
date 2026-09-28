@@ -35,6 +35,7 @@ folds <- vfold_cv(train_data, v = 5, strata = damage_grade)
 
 
 # --- RECIPE -------------------------------------------------------------------
+# After dummy-encoding and feature selection, yields 88 unique training predictors.
 
 base_recipe <- recipe(damage_grade ~ ., data = train_data) |>
   update_role(building_id, new_role = "id") |>
