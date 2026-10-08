@@ -8,14 +8,15 @@ library(future)
 library(doFuture)
 library(future.callr) # More robust backend for Positron
 
-# 1. Environment & Parallel Backend Setup ---------------------------------------
+# Setup ------------------------------------------------------------------------
 set.seed(42)
 load(here("data", "processed", "split_data.RData"))
+message("Executing Random Forest pipeline.")
 
 # Increase the export memory limit to 2 GB to handle the large dataset
 options(future.globals.maxSize = 2000 * 1024^2)
 
-# Dynamically detect usable cores (leaving one for OS processes)
+# Detect number of usable cores (leaving one for OS processes)
 total_cores <- max(1, parallel::detectCores(logical = FALSE) - 1)
 registerDoFuture()
 
@@ -29,7 +30,7 @@ message(paste("Active parallel workers:", nbrOfWorkers()))
 message(sprintf("Assigned %d threads per worker.", worker_threads))
 
 
-# Model Specification -------------------------------------------------------
+# Model Specification ----------------------------------------------------------
 
 # Define class weights based on their inverse frequencies
 rf_class_weights <- train_data |>
@@ -56,28 +57,21 @@ rf_spec <- rlang::inject(
   )
 )
 
-# 4. Tidymodels Workflow -------------------------------------------------------
+# Tidymodels Workflow and Setup ------------------------------------------------
 rf_wf <- workflow() |>
   add_recipe(base_recipe) |>
   add_model(rf_spec)
 
-# 5. Parameter Set & Ranges ----------------------------------------------------
 rf_params <- extract_parameter_set_dials(rf_wf) |>
   update(
     mtry  = mtry(range = c(5, 85)),
     min_n = min_n(range = c(5, 50))
   )
 
-# 6. Metrics & Execution Controls ----------------------------------------------
+# Metrics & Controls -----------------------------------------------------------
 qwk <- metric_tweak("qwk", kap, weighting = "quadratic")
 f_micro <- metric_tweak("f_micro", f_meas, estimator = "micro")
-
 custom_metrics <- metric_set(qwk, f_micro, accuracy)
-
-# ctrl_grid <- control_grid(
-#   save_pred     = TRUE,
-#   parallel_over = "everything"
-# )
 
 ctrl_bayes <- control_bayes(
   save_pred     = TRUE,
@@ -87,7 +81,15 @@ ctrl_bayes <- control_bayes(
   parallel_over = "resamples"
 )
 
-# 7. Space-Filling Grid Search -------------------------------------------------
+
+# Replaced with Bayesian hyperparameter optimization
+####################################################
+# ctrl_grid <- control_grid(
+#   save_pred     = TRUE,
+#   parallel_over = "everything"
+# )
+
+# Grid Search ------------------------------------------------------------------
 # message("Executing Space-Filling Grid Search...")
 # rf_grid_results <- tune_grid(
 #   rf_wf,
@@ -98,9 +100,11 @@ ctrl_bayes <- control_bayes(
 # )
 
 # saveRDS(rf_grid_results, here("results", "metrics", "rf_grid_results.rds"))
+####################################################
 
-# 8. Bayesian Optimization -----------------------------------------------------
-message("Executing Bayesian Optimization...")
+
+# Bayesian Tuning --------------------------------------------------------------
+message("Tuning parameters...")
 rf_bayes_results <- tune_bayes(
   rf_wf,
   resamples  = folds,
@@ -113,7 +117,7 @@ rf_bayes_results <- tune_bayes(
 
 saveRDS(rf_bayes_results, here("results", "metrics", "rf_bayes_results.rds"))
 
-# 9. Final Fit -----------------------------------------------------------------
+# Final Fit --------------------------------------------------------------------
 # Clean up parallelization to maximize final training efficiency
 plan(sequential)
 registerDoSEQ()
@@ -125,8 +129,8 @@ final_rf_spec <- rlang::inject(
   rf_spec |> 
     update(trees = 1000) |> 
     set_engine("ranger",
-      num.threads   = total_cores,  # allocate all available cores for training
-      importance    = "impurity",
+      num.threads   = total_cores,    # allocate all available cores for
+      importance    = "impurity",     # training, leaving one for OS
       class.weights = !!rf_class_weights)
 )
 
@@ -143,4 +147,4 @@ final_metrics   <- custom_metrics(final_preds, truth = damage_grade, estimate = 
 saveRDS(final_fit_model, here("results", "metrics", "final_rf_model.rds"))
 saveRDS(final_metrics, here("results", "metrics", "final_rf_metrics.rds"))
 
-message("Random Forest tuning pipeline complete.")
+message("Random Forest pipeline complete.")
