@@ -1,0 +1,10 @@
+Prediction,Truth,Freq
+high,high,9079
+medium,high,8386
+low,high,57
+high,medium,4359
+medium,medium,24132
+low,medium,1158
+high,low,76
+medium,low,3182
+low,low,1692
