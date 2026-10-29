@@ -1,0 +1,28 @@
+weight_scheme,Prediction,Truth,Freq
+Unweighted,high,high,36223
+Unweighted,medium,high,33219
+Unweighted,low,high,254
+Unweighted,high,medium,17860
+Unweighted,medium,medium,96284
+Unweighted,low,medium,4466
+Unweighted,high,low,344
+Unweighted,medium,low,12648
+Unweighted,low,low,7182
+Moderate,high,high,43644
+Moderate,medium,high,25057
+Moderate,low,high,995
+Moderate,high,medium,25964
+Moderate,medium,medium,81532
+Moderate,low,medium,11114
+Moderate,high,low,486
+Moderate,medium,low,8094
+Moderate,low,low,11594
+Fully balanced,high,high,47664
+Fully balanced,medium,high,18477
+Fully balanced,low,high,3555
+Fully balanced,high,medium,32184
+Fully balanced,medium,medium,61622
+Fully balanced,low,medium,24804
+Fully balanced,high,low,576
+Fully balanced,medium,low,4098
+Fully balanced,low,low,15500

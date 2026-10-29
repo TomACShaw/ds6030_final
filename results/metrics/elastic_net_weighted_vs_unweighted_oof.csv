@@ -1,0 +1,9 @@
+model,.metric,.estimator,.estimate
+Unweighted,qwk,multiclass,0.48097876086535385
+Unweighted,f_macro,macro,0.5899863644368495
+Unweighted,bal_accuracy,macro,0.6701494997616065
+Unweighted,accuracy,multiclass,0.6700354950115119
+Class weighted,qwk,multiclass,0.510679210496326
+Class weighted,f_macro,macro,0.5692860565940873
+Class weighted,bal_accuracy,macro,0.7230046993632246
+Class weighted,accuracy,multiclass,0.5901141596316194

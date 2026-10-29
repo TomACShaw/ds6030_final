@@ -80,6 +80,45 @@ mean five-fold estimates remain QWK `0.481`, macro-F1 `0.590`, accuracy `0.670`,
 and balanced accuracy `0.670`. The tuning refinement therefore confirms that
 the preliminary result is stable rather than producing a meaningful gain.
 
+## Class-weight comparison
+
+Because the unweighted confusion matrix showed that medium damage absorbed
+most classification errors, three weighting schemes were compared using the
+same five folds, expanded penalty grid, preprocessing, and unweighted
+validation metrics:
+
+| Weight scheme | High | Medium | Low |
+|---|---:|---:|---:|
+| Unweighted | 1.000 | 1.000 | 1.000 |
+| Moderate | 0.999 | 0.765 | 1.855 |
+| Fully balanced | 0.997 | 0.586 | 3.444 |
+
+The moderate weights are the square root of the fully balanced
+inverse-frequency weights. They increase the minority class's influence
+without forcing all classes to contribute equal total training weight.
+
+| Weight scheme | Penalty | Mixture | QWK | Macro-F1 | Balanced accuracy | Accuracy |
+|---|---:|---:|---:|---:|---:|---:|
+| Unweighted | 0.0001 | 1.00 | 0.481 | 0.590 | 0.670 | 0.670 |
+| Moderate | 0.0003 | 1.00 | **0.529** | **0.617** | 0.711 | 0.656 |
+| Fully balanced | 0.0300 | 0.25 | 0.512 | 0.576 | **0.722** | 0.599 |
+
+The moderate scheme produced the highest QWK and macro-F1 while sacrificing
+only 1.4 percentage points of overall accuracy. Its selected penalty was
+inside the expanded range rather than at a boundary.
+
+| Moderate-weight class | Precision | Recall | F1 | Predicted share |
+|---|---:|---:|---:|---:|
+| High | 0.623 | 0.626 | 0.624 | 33.6% |
+| Medium | 0.711 | 0.687 | 0.699 | 55.0% |
+| Low | 0.489 | 0.575 | 0.528 | 11.4% |
+
+The moderate model's predicted class distribution was close to the observed
+training distribution (33.4% high, 56.9% medium, and 9.7% low). Full balancing
+improved average recall further but overpredicted low and high damage, reducing
+macro-F1 and accuracy. These are pooled out-of-fold training predictions; the
+shared holdout remained locked throughout the comparison.
+
 ## Files
 
 - Model: `models/mancuso_elastic_net.R`
@@ -95,6 +134,12 @@ the preliminary result is stable rather than producing a meaningful gain.
 - Refined tuning plot: `results/figures/elastic_net_refined_tuning.png`
 - Refined cross-validation metrics: `results/metrics/elastic_net_refined_cv_metrics.csv`
 - Refined selected parameters: `results/metrics/elastic_net_refined_best_parameters.csv`
+- Weight-comparison code: `models/mancuso_elastic_net_weight_comparison.R`
+- Weight-comparison plot: `results/figures/elastic_net_weight_comparison_qwk.png`
+- Weight-comparison overall metrics: `results/metrics/elastic_net_weight_comparison_overall.csv`
+- Weight-comparison class metrics: `results/metrics/elastic_net_weight_comparison_per_class.csv`
+- Weight-comparison confusion matrices: `results/metrics/elastic_net_weight_comparison_confusion.csv`
+- Weight-comparison selected parameters: `results/metrics/elastic_net_weight_comparison_best.csv`
 
 ## How to run
 
@@ -112,6 +157,9 @@ preprocessing scripts before loading `split_data.RData`.
 
 - Confirm the group's final model-selection rules and compare each model using
   the same cross-validation metrics before unlocking the holdout.
+- Treat the moderate class-weighted elastic net as the current CV-selected
+  candidate; do not evaluate the holdout until all planned training-only
+  experiments and the group comparison are complete.
 - Compare alternative treatments of the geographic IDs.
 - Investigate whether class weighting or a different decision rule improves
   low- and high-damage recall.

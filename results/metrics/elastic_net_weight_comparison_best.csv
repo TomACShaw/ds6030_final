@@ -1,0 +1,4 @@
+weight_scheme,penalty,mixture,.config
+Unweighted,1e-4,1,pre0_mod05_post0
+Moderate,3e-4,1,pre0_mod10_post0
+Fully balanced,0.03,0.25,pre0_mod26_post0
