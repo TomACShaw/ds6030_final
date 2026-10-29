@@ -28,8 +28,11 @@ The current shared-pipeline analysis:
 6. dummy-encodes categorical predictors, removes zero-variance predictors, and
    normalizes numeric predictors;
 7. tunes `penalty` and `mixture` and selects the candidate with the highest
-   cross-validated quadratic weighted kappa; and
-8. evaluates the selected workflow on the shared 20% holdout set.
+   cross-validated quadratic weighted kappa (choosing the strongest penalty
+   when candidates have exactly tied QWK values); and
+8. leaves the shared 20% holdout untouched during tuning. Holdout evaluation
+   is controlled by `evaluate_holdout`, which remains `FALSE` until the final
+   elastic-net configuration is selected.
 
 ## Preliminary results
 
@@ -62,6 +65,21 @@ weakness, and high-damage recall is moderate. The results now use the same
 validation objects and preprocessing recipe as the other group models, making
 the cross-validation estimates directly comparable.
 
+## Refined tuning results
+
+The expanded grid evaluated 35 combinations: seven penalties from `0.000001`
+through `0.001` and five mixture values from `0.25` through `1.0`. The highest
+mean cross-validated QWK was `0.480969` at mixture `1.0`. Penalties from
+`0.000001` through `0.0001` produced exactly the same QWK at that mixture, so
+the script retains `penalty = 0.0001`, the strongest penalty on the tied
+plateau. This is not evidence that `0.0001` is meaningfully better than the
+smaller tied penalties; it is a parsimonious tie-breaking choice.
+
+The refined run did not evaluate the holdout set. At the retained setting, the
+mean five-fold estimates remain QWK `0.481`, macro-F1 `0.590`, accuracy `0.670`,
+and balanced accuracy `0.670`. The tuning refinement therefore confirms that
+the preliminary result is stable rather than producing a meaningful gain.
+
 ## Files
 
 - Model: `models/mancuso_elastic_net.R`
@@ -74,6 +92,9 @@ the cross-validation estimates directly comparable.
 - Holdout metrics: `results/metrics/elastic_net_shared_holdout_metrics.csv`
 - Per-class metrics: `results/metrics/elastic_net_shared_per_class_metrics.csv`
 - Confusion matrix: `results/metrics/elastic_net_shared_confusion_matrix.csv`
+- Refined tuning plot: `results/figures/elastic_net_refined_tuning.png`
+- Refined cross-validation metrics: `results/metrics/elastic_net_refined_cv_metrics.csv`
+- Refined selected parameters: `results/metrics/elastic_net_refined_best_parameters.csv`
 
 ## How to run
 
@@ -89,9 +110,8 @@ preprocessing scripts before loading `split_data.RData`.
 
 ## Before the final model comparison
 
-- Expand the tuning grid around the promising low-penalty region.
-- Because the current winner is on the lower edge of the tested penalty grid,
-  evaluate smaller penalties rather than treating `0.0001` as final.
+- Confirm the group's final model-selection rules and compare each model using
+  the same cross-validation metrics before unlocking the holdout.
 - Compare alternative treatments of the geographic IDs.
 - Investigate whether class weighting or a different decision rule improves
   low- and high-damage recall.
