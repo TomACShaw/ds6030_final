@@ -15,7 +15,6 @@ data/raw/*
 !data/raw/.gitkeep
 data/processed/*
 !data/processed/.gitkeep
-models/*
 !models/.gitkeep
 !models/*.R
 *.rds
@@ -36,6 +35,7 @@ Thumbs.db
 *_cache/
 *_files/
 .quarto/
+/testing/
 
 # Rendered outputs (render locally and commit when finalized)
 *.html

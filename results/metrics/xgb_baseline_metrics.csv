@@ -1,0 +1,5 @@
+.metric,.estimator,mean,n,std_err,.config
+accuracy,multiclass,0.6732444276741897,5,6.803320413734381e-4,pre0_mod0_post0
+bal_accuracy,macro,0.6650669768705375,5,0.001130222483193026,pre0_mod0_post0
+f_macro,macro,0.5874425122288139,5,0.0017815069292242557,pre0_mod0_post0
+qwk,multiclass,0.46617439142550415,5,0.0023339252691272467,pre0_mod0_post0

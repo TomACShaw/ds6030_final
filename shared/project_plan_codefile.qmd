@@ -1,0 +1,266 @@
+Group 6 Project Plan Codefile
+
+Project 3: Richter Earthquake 
+
+Members: Alex Chang (kqu3zr), Dan Clark (gfv6yd), Gina Mancuso (gmv9yu), Kris Miller(jvh9td), Tom Shaw (tas7ap) 
+
+```{r data_setup}
+#| message: false
+#| warning: false
+
+library(tidyverse)
+library(tidymodels)
+library(here)
+
+set.seed(42)  # global random seed
+
+# --- LOAD AND JOIN CSVs -------------------------------------------------------
+
+# Read both CSV files
+values_raw <- read_csv(here("data", "raw", "train_values.csv"),
+  show_col_types = FALSE)
+
+labels_raw <- read_csv(here("data", "raw", "train_labels.csv"),
+  show_col_types = FALSE)
+
+# Join as tibble
+data <- values_raw |>
+  inner_join(labels_raw, by = "building_id", relationship = "one-to-one") |>
+  as_tibble()
+
+# Throws an error if any rows are dropped
+stopifnot(nrow(data) == nrow(values_raw))
+
+# Save to "data/processed" for further processing and modeling
+saveRDS(data, here("data", "processed", "earthquake.rds"))
+```
+
+``` {r preprocessing}
+
+# --- PREPROCESSING ------------------------------------------------------------
+
+# Load the full (joined) dataset
+data <- readRDS(here("data", "processed", "earthquake.rds"))
+
+# Convert outcome to a labeled categorical factor
+data <- data |>
+  mutate(
+    damage_grade = factor(
+      damage_grade, 
+      levels = c(3, 2, 1), 
+      labels = c("high", "medium", "low"),
+      ordered = TRUE
+    )
+  )
+
+# Convert other categoricals to factors
+data <- data |>
+  mutate(across(c(where(is_character), geo_level_1_id), as.factor))
+
+
+# --- SPLITS -------------------------------------------------------------------
+
+eq_split <- initial_split(data, prop = 0.80, strata = damage_grade)
+train_data <- training(eq_split)
+test_data  <- testing(eq_split)
+
+# 5-fold stratified CV
+folds <- vfold_cv(train_data, v = 5, strata = damage_grade)
+
+
+# --- RECIPE -------------------------------------------------------------------
+
+base_recipe <- recipe(damage_grade ~ ., data = train_data) |>
+  update_role(building_id, new_role = "id") |>
+  step_rm(has_secondary_use, geo_level_2_id, geo_level_3_id) |>
+  step_novel(all_nominal_predictors()) |>
+  step_dummy(all_nominal_predictors(), one_hot = FALSE) |>  # no one_hot prevents multicollinearity
+  step_zv(all_predictors()) |>
+  step_normalize(all_numeric_predictors())
+```
+
+``` {r save_split_data}
+
+# --- SAVE OBJECTS -------------------------------------------------------------
+
+# Save to "data/processed" to ensure identical data loading in each model script
+#save(
+#  base_recipe,
+#  folds,
+#  train_data,
+#  test_data,
+#  file = "data/processed/split_data.RData"
+#)
+```
+
+``` {r eda}
+#| warning: FALSE
+
+# --- EDA CODE -----------------------------------------------------------------
+colSums(is.na(data))
+
+train_data |>
+  ggplot(aes(x = damage_grade)) +
+    geom_bar(color = "black", fill = "steelblue") +
+    geom_text(stat = "count",
+      aes(label = after_stat(
+        paste0(count, " (", round(100 * count / sum(count), 1), "%)"))), vjust = -0.5) +
+    labs(x = "Damage Grade", y = "Frequency", title = "Outcome Distribution")
+
+df <- train_data |>
+  select(damage_grade, where(~ is.numeric(.x) && n_distinct(na.omit(.x)) > 2)) |>
+  select(-any_of(c("building_id", "geo_level_1_id", "geo_level_2_id", "geo_level_3_id"))) |>
+  pivot_longer(cols = -damage_grade, names_to = "variable", values_to = "value")
+
+ggplot(df, aes(x = damage_grade, y = value, fill = damage_grade, group = damage_grade)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free", ncol = 3) +
+  scale_fill_manual(values = c("low" = "yellow", "medium" = "orange", "high" = "red"))
+```
+
+```{r}
+# Damage Grade by Selected Superstructure Features
+selected_superstructures <- c(
+  "has_superstructure_rc_engineered",
+  "has_superstructure_rc_non_engineered",
+  "has_superstructure_cement_mortar_brick",
+  "has_superstructure_cement_mortar_stone",
+  "has_superstructure_mud_mortar_stone",
+  "has_superstructure_stone_flag"
+)
+
+superstructure_plot <- train_data |>
+  select(damage_grade,all_of(selected_superstructures)) |>
+  pivot_longer(cols = -damage_grade, names_to = "variable", values_to = "has_feature") |>
+  mutate(has_feature = factor(has_feature, levels = c(0, 1), labels = c("No", "Yes")), variable = recode(variable,
+      "has_superstructure_rc_engineered" = "RC engineered",
+      "has_superstructure_rc_non_engineered" = "RC non-engineered",
+      "has_superstructure_cement_mortar_brick" = "Cement mortar brick",
+      "has_superstructure_cement_mortar_stone" = "Cement mortar stone",
+      "has_superstructure_mud_mortar_stone" = "Mud mortar stone",
+      "has_superstructure_stone_flag" = "Stone flag")) |>
+  count(variable, has_feature, damage_grade) |>
+  group_by(variable, has_feature) |>
+  mutate(percent = 100 * n / sum(n)) |>
+  ungroup()
+
+ggplot(superstructure_plot, aes(x = has_feature, y = percent, fill = damage_grade)) +
+  geom_col() +
+  facet_wrap(~ variable, ncol = 3) +
+  scale_fill_manual(values = c("#9ECAE1", "#4292C6", "#084594")) +
+  labs(title = "Damage Grade by Selected Superstructure Features", y = "Percent of Buildings", fill = "Damage Grade")
+```
+
+```{r}
+# Damage Grade by Selected Structural Characteristics
+selected_structural <- c(
+  "foundation_type",
+  "roof_type",
+  "ground_floor_type",
+  "other_floor_type"
+)
+
+structural_plot <- train_data |>
+  select(damage_grade, all_of(selected_structural)) |>
+  pivot_longer(cols = -damage_grade, names_to = "variable", values_to = "level") |>
+  mutate(variable = recode(variable,
+      "foundation_type" = "Foundation type",
+      "roof_type" = "Roof type",
+      "ground_floor_type" = "Ground floor type",
+      "other_floor_type" = "Other floor type")) |>
+  count(variable, level, damage_grade) |>
+  group_by(variable, level) |>
+  mutate(percent = 100 * n / sum(n)) |>
+  ungroup()
+
+ggplot(structural_plot,
+  aes(x = level, y = percent, fill = damage_grade)) +
+  geom_col() +
+  facet_wrap(~ variable, ncol = 2, scales = "free_x") +
+  scale_fill_manual(values = c("#9ECAE1", "#4292C6", "#084594")) +
+  labs(title = "Damage Grade by Selected Structural Characteristics", x = "Category", y = "Percent of Buildings", fill = "Damage Grade")
+```
+
+```{r}
+# distribution of count_families
+train_data |> 
+  count(count_families) |> 
+  mutate(percentage = round(n / sum(n) * 100, 1)) |> 
+  arrange(desc(n))
+```
+
+```{r}
+# distribution of count_floors_pre_eq
+train_data |> 
+  count(count_floors_pre_eq) |> 
+  mutate(percentage = round(n / sum(n) * 100, 1)) |> 
+  arrange(desc(n))
+```
+
+```{r}
+# Explore distribution of damage grades for age = 995
+ggplot(train_data |>
+    filter(age == 995), aes(x = damage_grade)) + 
+  geom_bar() + 
+  labs(title = "Distribution of Damage Grades for age = 995")
+```
+
+ 
+```{r}
+# Damage Grade Proportion by Geo Level 1
+geo1_plot <- train_data |>
+  select(damage_grade, geo_level_1_id) |>
+  count(geo_level_1_id, damage_grade) |>
+  group_by(geo_level_1_id) |>
+  mutate(percent = 100 * n / sum(n)) |>
+  ungroup()
+ 
+ggplot(geo1_plot, aes(x = factor(geo_level_1_id), y = percent, fill = damage_grade)) +
+  geom_col() +
+  scale_fill_manual(values = c("#9ECAE1", "#4292C6", "#084594")) +
+  labs(title = "Damage Grade by Region (geo_level_1_id)", x = "geo_level_1_id", y = "Percent of Buildings", fill = "Damage Grade")
+```
+ 
+
+ 
+```{r}
+# Damage Breakdown by Secondary Use
+selected_secondary <- c(
+  "has_secondary_use",
+  "has_secondary_use_agriculture",
+  "has_secondary_use_hotel",
+  "has_secondary_use_rental",
+  "has_secondary_use_institution",
+  "has_secondary_use_school",
+  "has_secondary_use_other"
+)
+ 
+secondary_plot <- train_data |>
+  select(damage_grade, all_of(selected_secondary)) |>
+  pivot_longer(cols = -damage_grade, names_to = "variable",
+    values_to = "has_feature") |>
+  mutate(
+    has_feature = factor(has_feature, levels = c(0, 1),
+      labels = c("No", "Yes")),
+    variable = recode(variable,
+      "has_secondary_use" = "Any secondary use",
+      "has_secondary_use_agriculture" = "Agriculture",
+      "has_secondary_use_hotel" = "Hotel",
+      "has_secondary_use_rental" = "Rental",
+      "has_secondary_use_institution" = "Institution",
+      "has_secondary_use_school" = "School",
+      "has_secondary_use_other" = "Other"),
+    variable = fct_relevel(variable, "Any secondary use")
+  ) |>
+  count(variable, has_feature, damage_grade) |>
+  group_by(variable, has_feature) |>
+  mutate(percent = 100 * n / sum(n)) |>
+  ungroup()
+ 
+ggplot(secondary_plot, aes(x = has_feature, y = percent, fill = damage_grade)) +
+  geom_col() +
+  facet_wrap(~ variable, ncol = 4) +
+  scale_fill_manual(values = c("#9ECAE1", "#4292C6", "#084594")) +
+  labs(title = "Damage Grade by Selected Secondary Use",
+    x = "Has Feature", y = "Percent of Buildings", fill = "Damage Grade")
+```
