@@ -1,145 +1,162 @@
 # Gina Mancuso — Elastic-Net Model
 
-## Purpose
+## Current candidate for group review
 
-This branch contains Gina's penalized multinomial logistic regression model for
-predicting earthquake damage grade (`low`, `medium`, or `high`). The model uses
-the elastic-net family implemented by `glmnet` through Tidymodels and now uses
-the group's shared split, folds, preprocessing recipe, and metrics.
+This branch contains a moderate class-weighted multinomial elastic-net model
+for predicting ordered earthquake damage grade (`high`, `medium`, or `low`).
+It uses the group's shared 80/20 split, exact five-fold cross-validation
+memberships, preprocessing decisions, and evaluation metrics so its
+cross-validation results can be compared directly with the other model
+families.
 
-Elastic net differs from the group's unpenalized multinomial logistic-regression
-baseline because it shrinks coefficients to reduce overfitting. Two parameters
-are tuned:
+The current training-only candidate uses:
 
-- `penalty` controls the overall amount of coefficient shrinkage.
-- `mixture` controls the kind of shrinkage: 0 is ridge, 1 is lasso, and values
-  between 0 and 1 blend the two.
+- square-root inverse-frequency class weights (`weight_power = 0.5`);
+- `penalty = 0.0003`;
+- `mixture = 1`, making the selected elastic-net endpoint a lasso model; and
+- quadratic weighted kappa (QWK) as the primary tuning metric.
 
-## Current workflow
+The model has **not** been evaluated on the shared holdout. The script contains
+an explicit stop if holdout evaluation is enabled during group review.
 
-The current shared-pipeline analysis:
+## Why moderate class weights were selected
 
-1. uses an 80/20 split stratified by damage grade;
-2. uses the group's five-fold stratified cross-validation object;
-3. uses the same `base_recipe` used by the other group models;
-4. treats `geo_level_1_id` and encoded character predictors as categorical;
-5. excludes `building_id`, the high-cardinality `geo_level_2_id` and
-   `geo_level_3_id`, and the redundant `has_secondary_use` umbrella flag;
-6. dummy-encodes categorical predictors, removes zero-variance predictors, and
-   normalizes numeric predictors;
-7. tunes `penalty` and `mixture` and selects the candidate with the highest
-   cross-validated quadratic weighted kappa (choosing the strongest penalty
-   when candidates have exactly tied QWK values); and
-8. leaves the shared 20% holdout untouched during tuning. Holdout evaluation
-   is controlled by `evaluate_holdout`, which remains `FALSE` until the final
-   elastic-net configuration is selected.
-
-## Preliminary results
-
-The best candidate in the initial 12-combination grid used
-`penalty = 0.0001` and `mixture = 1` (the lasso endpoint of the elastic-net
-family). Its mean five-fold cross-validated results were:
-
-| Cross-validation metric | Estimate |
-|---|---:|
-| Quadratic weighted kappa | 0.481 |
-| Macro-F1 | 0.590 |
-| Accuracy | 0.670 |
-| Balanced accuracy | 0.670 |
-
-| Holdout metric | Estimate |
-|---|---:|
-| Quadratic weighted kappa | 0.478 |
-| Macro-F1 | 0.585 |
-| Accuracy | 0.670 |
-| Balanced accuracy | 0.668 |
-
-| Damage grade | Precision | Recall | F1 |
-|---|---:|---:|---:|
-| Low | 0.582 | 0.342 | 0.431 |
-| Medium | 0.676 | 0.814 | 0.739 |
-| High | 0.672 | 0.518 | 0.585 |
-
-The model recognizes medium damage most often. Low-damage recall is the main
-weakness, and high-damage recall is moderate. The results now use the same
-validation objects and preprocessing recipe as the other group models, making
-the cross-validation estimates directly comparable.
-
-## Refined tuning results
-
-The expanded grid evaluated 35 combinations: seven penalties from `0.000001`
-through `0.001` and five mixture values from `0.25` through `1.0`. The highest
-mean cross-validated QWK was `0.480969` at mixture `1.0`. Penalties from
-`0.000001` through `0.0001` produced exactly the same QWK at that mixture, so
-the script retains `penalty = 0.0001`, the strongest penalty on the tied
-plateau. This is not evidence that `0.0001` is meaningfully better than the
-smaller tied penalties; it is a parsimonious tie-breaking choice.
-
-The refined run did not evaluate the holdout set. At the retained setting, the
-mean five-fold estimates remain QWK `0.481`, macro-F1 `0.590`, accuracy `0.670`,
-and balanced accuracy `0.670`. The tuning refinement therefore confirms that
-the preliminary result is stable rather than producing a meaningful gain.
-
-## Class-weight comparison
-
-Because the unweighted confusion matrix showed that medium damage absorbed
-most classification errors, three weighting schemes were compared using the
-same five folds, expanded penalty grid, preprocessing, and unweighted
-validation metrics:
+The unweighted model predicted medium damage too often and had weak recall for
+low damage. Three weighting schemes were compared using the same five folds,
+preprocessing, tuning grid, and unweighted validation metrics:
 
 | Weight scheme | High | Medium | Low |
 |---|---:|---:|---:|
 | Unweighted | 1.000 | 1.000 | 1.000 |
-| Moderate | 0.999 | 0.765 | 1.855 |
-| Fully balanced | 0.997 | 0.586 | 3.444 |
+| Moderate | 0.999 | 0.765 | 1.856 |
+| Fully balanced | 0.997 | 0.586 | 3.445 |
 
-The moderate weights are the square root of the fully balanced
-inverse-frequency weights. They increase the minority class's influence
-without forcing all classes to contribute equal total training weight.
+The moderate weights are the square root of fully balanced inverse-frequency
+weights. They increase the influence of the less frequent low-damage class
+without forcing all three classes to contribute equal total training weight.
 
 | Weight scheme | Penalty | Mixture | QWK | Macro-F1 | Balanced accuracy | Accuracy |
 |---|---:|---:|---:|---:|---:|---:|
 | Unweighted | 0.0001 | 1.00 | 0.481 | 0.590 | 0.670 | 0.670 |
-| Moderate | 0.0003 | 1.00 | **0.529** | **0.617** | 0.711 | 0.656 |
+| **Moderate** | **0.0003** | **1.00** | **0.529** | **0.617** | 0.711 | 0.656 |
 | Fully balanced | 0.0300 | 0.25 | 0.512 | 0.576 | **0.722** | 0.599 |
 
-The moderate scheme produced the highest QWK and macro-F1 while sacrificing
-only 1.4 percentage points of overall accuracy. Its selected penalty was
-inside the expanded range rather than at a boundary.
+The moderate scheme produced the highest QWK and macro-F1. It improved class
+balance while sacrificing only 1.4 percentage points of overall accuracy. The
+fully balanced model obtained the highest average recall but overpredicted low
+and high damage, which reduced macro-F1 and accuracy.
 
-| Moderate-weight class | Precision | Recall | F1 | Predicted share |
-|---|---:|---:|---:|---:|
-| High | 0.623 | 0.626 | 0.624 | 33.6% |
-| Medium | 0.711 | 0.687 | 0.699 | 55.0% |
-| Low | 0.489 | 0.575 | 0.528 | 11.4% |
+## Current out-of-fold results
 
-The moderate model's predicted class distribution was close to the observed
-training distribution (33.4% high, 56.9% medium, and 9.7% low). Full balancing
-improved average recall further but overpredicted low and high damage, reducing
-macro-F1 and accuracy. These are pooled out-of-fold training predictions; the
-shared holdout remained locked throughout the comparison.
+These estimates pool predictions from the five assessment folds. Every row was
+predicted by a model that was not trained on that row.
 
-## Files
+| Metric | Estimate |
+|---|---:|
+| Quadratic weighted kappa | 0.529 |
+| Macro-F1 | 0.617 |
+| Balanced accuracy | 0.711 |
+| Accuracy | 0.656 |
 
-- Model: `models/mancuso_elastic_net.R`
-- Correlation-matrix code: `eda/mancuso_correlation.R`
-- Correlation-matrix figure: `results/figures/mancuso_predictor_correlation_matrix.png`
-- Predictor-correlation table: `results/metrics/mancuso_predictor_correlations.csv`
-- Shared-fold tuning plot: `results/figures/elastic_net_shared_tuning.png`
-- Cross-validation metrics: `results/metrics/elastic_net_shared_cv_metrics.csv`
-- Best parameters: `results/metrics/elastic_net_shared_best_parameters.csv`
-- Holdout metrics: `results/metrics/elastic_net_shared_holdout_metrics.csv`
-- Per-class metrics: `results/metrics/elastic_net_shared_per_class_metrics.csv`
-- Confusion matrix: `results/metrics/elastic_net_shared_confusion_matrix.csv`
-- Refined tuning plot: `results/figures/elastic_net_refined_tuning.png`
-- Refined cross-validation metrics: `results/metrics/elastic_net_refined_cv_metrics.csv`
-- Refined selected parameters: `results/metrics/elastic_net_refined_best_parameters.csv`
-- Weight-comparison code: `models/mancuso_elastic_net_weight_comparison.R`
-- Weight-comparison plot: `results/figures/elastic_net_weight_comparison_qwk.png`
-- Weight-comparison overall metrics: `results/metrics/elastic_net_weight_comparison_overall.csv`
-- Weight-comparison class metrics: `results/metrics/elastic_net_weight_comparison_per_class.csv`
-- Weight-comparison confusion matrices: `results/metrics/elastic_net_weight_comparison_confusion.csv`
-- Weight-comparison selected parameters: `results/metrics/elastic_net_weight_comparison_best.csv`
+| Damage grade | Precision | Recall | F1 | Observed share | Predicted share |
+|---|---:|---:|---:|---:|---:|
+| High | 0.623 | 0.626 | 0.624 | 33.4% | 33.6% |
+| Medium | 0.711 | 0.687 | 0.699 | 56.9% | 55.0% |
+| Low | 0.489 | 0.575 | 0.528 | 9.7% | 11.4% |
+
+The predicted shares are close to the observed training shares, but this is not
+proof that they match the unknown population distribution. The more important
+evidence is the simultaneous improvement in QWK, macro-F1, and low- and
+high-damage recall under cross-validation.
+
+## Out-of-fold confusion matrix
+
+Rows below are the actual damage class and percentages sum to 100% within each
+row.
+
+| Actual class | Predicted high | Predicted medium | Predicted low |
+|---|---:|---:|---:|
+| High | 62.6% | 36.0% | 1.4% |
+| Medium | 21.9% | 68.7% | 9.4% |
+| Low | 2.4% | 40.1% | 57.5% |
+
+Most remaining errors are between adjacent classes. Extreme high-versus-low
+errors remain uncommon, which is one reason QWK is useful for this ordered
+outcome.
+
+## Preprocessing and validation
+
+The primary script:
+
+1. loads the group's shared stratified 80/20 split;
+2. preserves the group's exact five stratified cross-validation folds;
+3. calculates class weights separately from each analysis fold to avoid using
+   the corresponding assessment-fold outcome frequencies;
+4. treats `building_id` as an identifier rather than a predictor;
+5. removes `has_secondary_use`, `geo_level_2_id`, and `geo_level_3_id`;
+6. retains `geo_level_1_id` as a categorical predictor;
+7. handles novel categorical levels, creates dummy variables, removes
+   zero-variance predictors, and normalizes numeric predictors;
+8. tunes seven penalties and five mixture values using mean five-fold QWK; and
+9. refits the selected setting across the same folds to create out-of-fold
+   metrics, a confusion matrix, and class-specific metrics.
+
+## Feature selection and interpretation
+
+At `mixture = 1`, lasso can set coefficients exactly to zero. Excluding the
+three class intercepts, the selected moderate-weight model retained:
+
+| Damage grade | Retained coefficients | Zero coefficients |
+|---|---:|---:|
+| High | 62 | 24 |
+| Medium | 33 | 53 |
+| Low | 71 | 15 |
+
+Geographic indicators are prominent for the high- and low-damage class scores,
+while the medium class uses fewer and generally smaller coefficients. The
+categorical letter codes in this competition are intentionally obfuscated, so
+the analysis should describe associations with the encoded categories rather
+than assigning unsupported physical meanings to them. Coefficients are also
+associations, not causal effects.
+
+## Holdout status
+
+The moderate-weight candidate and the class-weight comparison have not scored
+the shared holdout. An earlier unweighted prototype did produce preliminary
+holdout metrics before the current candidate was selected. Therefore, the
+holdout has not remained completely unseen over the entire project, although
+the moderate model was selected from cross-validation results only. The group
+should review this history and agree on how to describe and conduct final
+evaluation before enabling any additional holdout run.
+
+## Files for review
+
+- Primary model: `models/mancuso_elastic_net.R`
+- Controlled weight comparison: `models/mancuso_elastic_net_weight_comparison.R`
+- QWK tuning figure: `results/figures/elastic_net_candidate_tuning.png`
+- Out-of-fold confusion figure: `results/figures/elastic_net_candidate_confusion.png`
+- Coefficient figure: `results/figures/elastic_net_candidate_coefficients.png`
+- Selected parameters: `results/metrics/elastic_net_candidate_best_parameters.csv`
+- Class weights: `results/metrics/elastic_net_candidate_class_weights.csv`
+- Overall out-of-fold metrics: `results/metrics/elastic_net_candidate_oof_metrics.csv`
+- Class-specific metrics: `results/metrics/elastic_net_candidate_oof_per_class.csv`
+- Confusion matrix data: `results/metrics/elastic_net_candidate_oof_confusion.csv`
+- All selected-model coefficients: `results/metrics/elastic_net_candidate_coefficients.csv`
+- Full tuning results: `results/metrics/elastic_net_candidate_tuning_metrics.csv`
+
+## Questions for group review
+
+1. Are all model families using the same split, folds, preprocessing decisions,
+   outcome ordering, and metric definitions?
+2. Does the group agree that QWK should remain the primary selection metric,
+   with macro-F1, balanced accuracy, accuracy, and class recall as supporting
+   evidence?
+3. Does the group agree that the moderate-weight model provides a more useful
+   tradeoff than either the unweighted or fully balanced elastic net?
+4. Are any additional training-only experiments necessary before freezing the
+   elastic-net candidate?
+5. Given the earlier exploratory unweighted holdout evaluation, how should the
+   group document and conduct the final evaluation?
 
 ## How to run
 
@@ -150,23 +167,12 @@ source("models/mancuso_elastic_net.R")
 ```
 
 The raw CSV files must be available in `data/raw/`. If the generated processed
-objects are missing, the model script runs the group's shared setup and
-preprocessing scripts before loading `split_data.RData`.
-
-## Before the final model comparison
-
-- Confirm the group's final model-selection rules and compare each model using
-  the same cross-validation metrics before unlocking the holdout.
-- Treat the moderate class-weighted elastic net as the current CV-selected
-  candidate; do not evaluate the holdout until all planned training-only
-  experiments and the group comparison are complete.
-- Compare alternative treatments of the geographic IDs.
-- Investigate whether class weighting or a different decision rule improves
-  low- and high-damage recall.
+objects are missing, the script runs the group's shared data setup and
+preprocessing scripts before loading the shared split.
 
 ## AI assistance disclosure
 
-OpenAI Codex was used as a tutoring aid to explain elastic net,
-structure the initial Tidymodels workflow, debug the implementation, and verify
-the preliminary outputs. Gina Mancuso is responsible for reviewing,
-understanding, and adapting the analysis for the group submission.
+OpenAI Codex was used as a tutoring aid to explain elastic net, structure and
+debug the Tidymodels workflow, verify the outputs, and improve documentation.
+Gina Mancuso is responsible for reviewing, understanding, and adapting the
+analysis for the group submission.
