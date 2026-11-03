@@ -1,0 +1,2 @@
+weight_power,smoothing_strength,inner_encoding_folds,outer_validation_folds,penalty,mixture,evaluate_holdout
+0.5,10,5,5,0.003,0.5,FALSE

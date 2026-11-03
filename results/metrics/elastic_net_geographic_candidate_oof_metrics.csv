@@ -1,0 +1,6 @@
+.metric,.estimator,.estimate
+qwk,multiclass,0.6124885489880676
+f_macro,macro,0.6856722390950092
+bal_accuracy,macro,0.7654051675961118
+accuracy,multiclass,0.7249136607828089
+macro_recall,macro,0.6983619309291982
