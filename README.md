@@ -38,6 +38,31 @@ candidate script keeps `evaluate_holdout <- FALSE`; the shared holdout remains
 locked until the group agrees on final model selection and a common evaluation
 procedure.
 
+### Ordinal sensitivity analysis
+
+Because the response is ordered (`low < medium < high`), an additional
+training-only sensitivity analysis tested a parallel cumulative-logit elastic
+net. This model uses one shared damage-risk direction and two ordered class
+boundaries. It was fit with the same five validation folds, geographic
+encodings, class-weighting approach, and mixture of 0.50 as the multinomial
+candidate. The ordinal penalty was selected by the one-standard-error rule.
+
+The ordinal model reduced severe low-to-high or high-to-low errors from 1,524
+to 901, a 40.9% reduction. However, it also moved more low-damage buildings
+into the medium class. Low-damage recall decreased from 0.6536 to 0.5896,
+pooled QWK decreased from 0.6125 to 0.6019, and the ordinal model had lower QWK
+in all five validation folds. Accuracy, macro F1, and macro recall also
+decreased.
+
+This experiment shows that explicitly enforcing the outcome order can prevent
+some extreme classification errors, but the single shared ordinal effect is
+too restrictive for the overall prediction task. The geographic multinomial
+elastic net therefore remains the final candidate because it provides better
+overall agreement and more balanced class-specific performance. The ordinal
+experiment is retained in `models/mancuso_ordinal_elastic_net_experiment.R` as
+evidence that an alternative outcome formulation was evaluated before final
+model selection.
+
 ### Reproducing the candidate
 
 First run the shared data setup and preprocessing scripts to create
@@ -51,6 +76,13 @@ The script saves compact metric tables under `results/metrics/`, figures under
 `results/figures/`, and local `.rds` prediction artifacts. The `.rds` artifacts
 are reproducible and intentionally excluded from Git because they are large
 binary files.
+
+The ordinal sensitivity script additionally requires the `ordinalNet` package:
+
+```r
+install.packages("ordinalNet")
+source("models/mancuso_ordinal_elastic_net_experiment.R")
+```
 
 
 ## Project File Structure

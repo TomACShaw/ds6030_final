@@ -1,0 +1,11 @@
+model,.metric,.estimator,.estimate
+Multinomial candidate,qwk,multiclass,0.6124885489880676
+Multinomial candidate,f_macro,macro,0.6856722390950092
+Multinomial candidate,bal_accuracy,macro,0.7654051675961118
+Multinomial candidate,accuracy,multiclass,0.7249136607828089
+Multinomial candidate,macro_recall,macro,0.6983619309291982
+Ordinal sensitivity,qwk,multiclass,0.6018899956056007
+Ordinal sensitivity,f_macro,macro,0.671319220903802
+Ordinal sensitivity,bal_accuracy,macro,0.7485449761286906
+Ordinal sensitivity,accuracy,multiclass,0.7149510744435917
+Ordinal sensitivity,macro_recall,macro,0.6737352567492817

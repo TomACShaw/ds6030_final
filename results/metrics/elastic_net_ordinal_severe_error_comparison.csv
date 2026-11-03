@@ -1,0 +1,3 @@
+model,observations,low_to_high,high_to_low,severe_errors,severe_error_rate
+Multinomial candidate,208480,430,1094,1524,0.007310053722179586
+Ordinal sensitivity,208480,260,641,901,0.004321757482732156
