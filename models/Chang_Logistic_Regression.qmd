@@ -1,0 +1,125 @@
+---
+title: "Multinomial Logistic Regression"
+author: "Alex Chang"
+format: pdf
+execute:
+  message: false
+  warning: false
+---
+
+
+```{r}
+#| label: setup
+#| include: false
+knitr::opts_knit$set(root.dir = here::here())
+```
+
+```{r}
+#| label: load-data
+#| message: false
+library(tidymodels)
+library(here)
+library(readr)
+
+set.seed(123)
+
+source(here("shared", "02_preprocessing.R"))
+```
+
+```{r}
+#| label: qwk-metric
+qwk <- metric_tweak("qwk", kap, weighting = "quadratic")
+grade_metrics <- metric_set(qwk, accuracy, f_meas, roc_auc)
+```
+
+## Model
+
+```{r}
+#| label: model-spec
+multinomial_spec <- multinom_reg() |>
+  set_engine("nnet") |>
+  set_mode("classification")
+
+log_reg_workflow <- workflow() |>
+  add_model(multinomial_spec) |>
+  add_recipe(base_recipe)
+```
+
+## Cross-validation
+
+```{r}
+#| label: cv-fit
+set.seed(123)
+log_reg_resamples <- fit_resamples(
+  log_reg_workflow,
+  resamples = folds,
+  metrics = grade_metrics,
+  control = control_resamples(save_pred = TRUE)
+)
+
+collect_metrics(log_reg_resamples)
+```
+
+## Final fit
+
+```{r}
+#| label: final-fit
+log_reg_last_fit <- last_fit(
+  log_reg_workflow,
+  eq_split,
+  metrics = grade_metrics
+)
+
+collect_metrics(log_reg_last_fit)
+```
+
+```{r}
+#| label: test-predictions
+test_pred <- collect_predictions(log_reg_last_fit)
+
+conf_mat(test_pred, damage_grade, estimate = .pred_class)
+```
+
+```{r}
+#| label: per-class
+# One-vs-rest precision, recall, and F1 for each damage grade, computed
+# directly from the confusion matrix (yardstick's precision()/recall()/
+# f_meas() only return macro-averaged values for multiclass outcomes).
+cm_tbl <- conf_mat(test_pred, damage_grade, estimate = .pred_class)$table
+
+map_dfr(rownames(cm_tbl), function(cls) {
+  tp <- cm_tbl[cls, cls]
+  fp <- sum(cm_tbl[cls, ]) - tp
+  fn <- sum(cm_tbl[, cls]) - tp
+  precision <- tp / (tp + fp)
+  recall <- tp / (tp + fn)
+  tibble(
+    class = cls,
+    precision = precision,
+    recall = recall,
+    f_meas = 2 * precision * recall / (precision + recall)
+  )
+})
+```
+
+## Save results
+
+```{r}
+#| label: save-results
+#| include: false
+dir.create(here("results", "models"), showWarnings = FALSE)
+
+saveRDS(
+  extract_workflow(log_reg_last_fit),
+  here("results", "models", "chang_multinomial_logistic.rds")
+)
+
+# do I need this?
+# collect_metrics(log_reg_last_fit) |>
+#   mutate(model = "multinomial_logistic") |>
+#   write_csv(here("results", "metrics", "chang_multinomial_logistic.csv"))
+
+# collect_metrics(log_reg_resamples) |>
+#   mutate(model = "multinomial_logistic") |>
+#   write_csv(here("results", "metrics", "chang_multinomial_logistic_cv.csv"))
+```
