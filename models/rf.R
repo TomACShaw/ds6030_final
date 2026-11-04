@@ -9,9 +9,21 @@ library(doFuture)
 library(future.callr) # More robust backend for Positron
 
 # Setup ------------------------------------------------------------------------
-set.seed(42)
-load(here("data", "processed", "split_data.RData"))
 message("Executing Random Forest pipeline.")
+
+set.seed(42)
+processed_path <- here("data", "processed", "earthquake.rds")
+split_path <- here("data", "processed", "split_data.RData")
+
+if (!file.exists(processed_path)) {
+  source(here("shared", "01_data_setup.R"))
+}
+
+if (!file.exists(split_path)) {
+  source(here("shared", "02_preprocessing.R"))
+}
+
+load(split_path)
 
 # Increase the export memory limit to 2 GB to handle the large dataset
 options(future.globals.maxSize = 2000 * 1024^2)
@@ -42,7 +54,7 @@ rf_class_weights <- train_data |>
 # Initialize the model
 base_rf_spec <- rand_forest(
   mtry  = tune(),
-  trees = 100,    
+  trees = 100,    # small number of trees for tuning, will increase at final fit
   min_n = tune()
 ) |> set_mode("classification")
 
@@ -51,7 +63,7 @@ rf_spec <- rlang::inject(
   set_engine(
     base_rf_spec,
     "ranger",
-    num.threads   = worker_threads,  # Dynamically allocated based on hardware
+    num.threads   = worker_threads,
     importance    = "impurity",
     class.weights = !!rf_class_weights 
   )
@@ -82,7 +94,7 @@ ctrl_bayes <- control_bayes(
 )
 
 
-# Replaced with Bayesian hyperparameter optimization
+### Replaced with Bayesian hyperparameter optimization
 ####################################################
 # ctrl_grid <- control_grid(
 #   save_pred     = TRUE,
@@ -130,7 +142,7 @@ final_rf_spec <- rlang::inject(
     update(trees = 1000) |> 
     set_engine("ranger",
       num.threads   = total_cores,    # allocate all available cores for
-      importance    = "impurity",     # training, leaving one for OS
+      importance    = "impurity",     #   training, leaving one for OS
       class.weights = !!rf_class_weights)
 )
 

@@ -34,6 +34,7 @@ Thumbs.db
 *_cache/
 *_files/
 .quarto/
+/testing/
 
 # Rendered outputs (render locally and commit when finalized)
 *.html

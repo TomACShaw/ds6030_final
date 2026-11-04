@@ -10,3 +10,5 @@ GGally
 patchwork
 knitr
 scales
+future
+xgboost
