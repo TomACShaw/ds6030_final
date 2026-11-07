@@ -1,0 +1,5 @@
+.metric,.estimator,mean,n,std_err,.config,model
+accuracy,multiclass,0.6685149688391777,5,4.696506098789694e-4,pre0_mod0_post0,multinomial_logistic
+f_macro,macro,0.5734728725449819,5,0.001213373197258592,pre0_mod0_post0,multinomial_logistic
+qwk,multiclass,0.46555199246077794,5,9.486956370029439e-4,pre0_mod0_post0,multinomial_logistic
+roc_auc,hand_till,0.8174036876692045,5,0.0010335493227565168,pre0_mod0_post0,multinomial_logistic
