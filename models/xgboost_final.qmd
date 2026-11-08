@@ -1,0 +1,301 @@
+---
+title: "XGBoost"
+author: "Dan Clark"
+format: pdf
+execute:
+  message: false
+  warning: false
+---
+
+```{r}
+library(tidyverse)
+library(tidymodels)
+library(future)
+library(here)
+
+knitr::opts_chunk$set(cache = FALSE)
+```
+
+```{r}
+set.seed(42)
+load(here("data", "processed", "split_data.RData"))
+
+qwk <- metric_tweak("qwk", kap, weighting = "quadratic")
+f_macro <- metric_tweak("f_macro", f_meas, estimator = "macro")
+f_micro <- metric_tweak("f_micro", f_meas, estimator = "micro")
+model_metrics <- metric_set(qwk, f_macro, f_micro, bal_accuracy, accuracy, roc_auc)
+
+train_data |> count(damage_grade)
+```
+
+```{r}
+plan(multisession, workers = min(4, nrow(folds)))
+```
+
+## Baseline Cross-Validation
+
+```{r}
+model_xgb <- boost_tree(mode = "classification",
+  trees = 100, learn_rate = 0.1, tree_depth = 3) |>
+  set_engine("xgboost", nthread = 1)
+
+workflow_xgb <- workflow() |>
+  add_recipe(base_recipe) |>
+  add_model(model_xgb)
+
+set.seed(42)
+xgb_fit_cv <- workflow_xgb |>
+  fit_resamples(resamples = folds, metrics = model_metrics)
+xgb_baseline_metrics <- collect_metrics(xgb_fit_cv)
+xgb_baseline_metrics
+```
+
+## Weighting
+
+```{r}
+weight_exponent <- 0.5
+class_counts <- train_data |>
+  count(damage_grade, name = "class_count")
+weighted_train <- train_data |>
+  left_join(class_counts, by = "damage_grade") |>
+  mutate(case_weight = (nrow(train_data) / class_count)^weight_exponent,
+    case_weight = hardhat::importance_weights(case_weight / mean(case_weight))) |>
+  select(-class_count)
+
+weighted_splits <- vector("list", nrow(folds))
+for (i in seq_len(nrow(folds))) 
+{
+  split <- folds$splits[[i]]
+  analysis_data <- analysis(split)
+  class_counts <- analysis_data |>
+    count(damage_grade, name = "class_count")
+  analysis_data <- analysis_data |>
+    left_join(class_counts, by = "damage_grade") |>
+    mutate(case_weight = (nrow(analysis_data) / class_count)^weight_exponent,
+      case_weight = hardhat::importance_weights(case_weight / mean(case_weight))) |>
+    select(-class_count)
+  assessment_data <- assessment(split) |>
+    mutate(case_weight = hardhat::importance_weights(rep(1, n())))
+  n_analysis <- nrow(analysis_data)
+  weighted_splits[[i]] <- make_splits(list(analysis = seq_len(n_analysis),
+    assessment = n_analysis + seq_len(nrow(assessment_data))),
+    data = bind_rows(analysis_data, assessment_data))
+}
+weighted_folds <- manual_rset(weighted_splits, ids = folds$id)
+
+weighted_recipe <- recipe(damage_grade ~ ., data = weighted_train) |>
+  update_role(building_id, new_role = "id") |>
+  step_rm(has_secondary_use, geo_level_2_id, geo_level_3_id) |>
+  step_novel(all_nominal_predictors()) |>
+  step_dummy(all_nominal_predictors(), one_hot = FALSE) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_numeric_predictors())
+```
+
+```{r}
+initial_candidates <- 15
+
+model_xgb_tune <- boost_tree(mode = "classification", trees = tune(),
+  learn_rate = tune(), tree_depth = tune(), min_n = tune(),
+  loss_reduction = tune(), sample_size = tune(), mtry = tune()) |>
+  set_engine("xgboost", nthread = 1, counts = FALSE)
+
+workflow_xgb_tune <- workflow() |>
+  add_recipe(weighted_recipe) |>
+  add_model(model_xgb_tune) |>
+  add_case_weights(case_weight)
+
+parameters_xgb <- extract_parameter_set_dials(workflow_xgb_tune) |>
+  update(trees = trees(c(100, 1500)),
+    learn_rate = learn_rate(log10(c(0.01, 0.20))),
+    tree_depth = tree_depth(c(2, 14)),
+    min_n = min_n(c(2, 30)),
+    loss_reduction = loss_reduction(c(0, 5), trans = NULL),
+    sample_size = sample_prop(c(0.6, 1.0)),
+    mtry = mtry_prop(c(0.3, 1.0)))
+
+set.seed(42)
+initial_grid <- grid_space_filling(parameters_xgb,
+  size = initial_candidates, type = "latin_hypercube")
+initial_grid
+```
+
+## Tuning Test
+
+```{r}
+set.seed(42)
+xgb_initial_results <- workflow_xgb_tune |>
+  tune_grid(resamples = weighted_folds, grid = initial_grid,
+    metrics = model_metrics, control = control_grid(verbose = TRUE))
+```
+
+```{r}
+bayes_iterations <- 25
+control_xgb_bayes <- control_bayes(
+  verbose = TRUE, verbose_iter = TRUE, no_improve = 10,
+  seed = 42, parallel_over = "resamples")
+
+set.seed(42)
+xgb_tune_results <- workflow_xgb_tune |>
+  tune_bayes(resamples = weighted_folds, initial = xgb_initial_results,
+    param_info = parameters_xgb, iter = bayes_iterations,
+    metrics = model_metrics, control = control_xgb_bayes)
+```
+
+## Tuning Results
+
+```{r}
+collect_notes(xgb_tune_results)
+xgb_tuning_metrics <- collect_metrics(xgb_tune_results)
+show_best(xgb_tune_results, metric = "qwk")
+autoplot(xgb_tune_results, metric = "qwk", type = "performance")
+
+best_xgb_parameters <- select_best(xgb_tune_results, metric = "qwk")
+best_xgb_parameters
+```
+
+## Cross-Validation Results
+
+```{r}
+xgb_tuned_metrics <- xgb_tuning_metrics |>
+  filter(.config == best_xgb_parameters$.config) |>
+  select(.metric, .estimator, mean, n, std_err)
+
+xgb_cv_comparison <- bind_rows(xgb_baseline_metrics |> mutate(model = "Unweighted baseline"),
+  xgb_tuned_metrics |> mutate(model = "Mild-weighted Bayesian (depth 2–14)")) |>
+  select(model, .metric, mean, std_err)
+
+xgb_cv_comparison |>
+  pivot_wider(names_from = .metric, values_from = c(mean, std_err))
+```
+
+
+```{r}
+baseline_folds <- collect_metrics(xgb_fit_cv, summarize = FALSE) |>
+  select(id, .metric, baseline = .estimate)
+
+tuned_folds <- collect_metrics(xgb_tune_results, summarize = FALSE) |>
+  filter(.config == best_xgb_parameters$.config) |>
+  select(id, .metric, tuned = .estimate)
+
+xgb_fold_comparison <- baseline_folds |>
+  inner_join(tuned_folds, by = c("id", ".metric")) |>
+  mutate(change = tuned - baseline)
+
+xgb_fold_comparison |>
+  group_by(.metric) |>
+  summarise(mean_change = mean(change), folds_improved = sum(change > 0), folds_declined = sum(change < 0), .groups = "drop")
+```
+
+## Selected Model Cross-Validation
+
+```{r}
+best_xgb_workflow <- workflow_xgb_tune |>
+  finalize_workflow(best_xgb_parameters)
+
+set.seed(42)
+xgb_selected_cv <- best_xgb_workflow |>
+  fit_resamples(resamples = weighted_folds, metrics = model_metrics,
+    control = control_resamples(save_pred = TRUE))
+
+collect_notes(xgb_selected_cv)
+xgb_selected_cv_metrics <- collect_metrics(xgb_selected_cv)
+xgb_selected_cv_metrics
+xgb_cv_predictions <- collect_predictions(xgb_selected_cv)
+```
+
+```{r}
+xgb_cv_confusion <- xgb_cv_predictions |>
+  conf_mat(truth = damage_grade, estimate = .pred_class)
+xgb_cv_confusion
+autoplot(xgb_cv_confusion, type = "heatmap")
+xgb_cv_confusion_counts <- as_tibble(xgb_cv_confusion$table)
+```
+
+```{r}
+xgb_cv_per_class <- tibble()
+for (class_level in levels(train_data$damage_grade)) {
+  class_predictions <- tibble(
+    truth = factor(xgb_cv_predictions$damage_grade == class_level,
+      levels = c(TRUE, FALSE)),
+    estimate = factor(xgb_cv_predictions$.pred_class == class_level,
+      levels = c(TRUE, FALSE)))
+
+  class_metrics <- tibble(class = class_level,
+    precision = precision(class_predictions, truth, estimate, event_level = "first")$.estimate,
+    recall = recall(class_predictions, truth, estimate, event_level = "first")$.estimate,
+    f1 = f_meas(class_predictions, truth, estimate, event_level = "first")$.estimate)
+  xgb_cv_per_class <- bind_rows(xgb_cv_per_class, class_metrics)
+}
+
+xgb_cv_per_class
+```
+
+```{r}
+plan(sequential)
+```
+
+## Final Model
+
+```{r}
+set.seed(42)
+final_xgb_fit <- best_xgb_workflow |>
+  fit(data = weighted_train)
+```
+
+## Holdout Evaluation
+
+```{r}
+xgb_holdout_predictions <- augment(final_xgb_fit, new_data = test_data)
+xgb_holdout_metrics <- model_metrics(
+  xgb_holdout_predictions,
+  truth = damage_grade,
+  estimate = .pred_class,
+  .pred_high, .pred_medium, .pred_low)
+xgb_holdout_metrics
+```
+
+```{r}
+xgb_holdout_confusion <- xgb_holdout_predictions |>
+  conf_mat(truth = damage_grade, estimate = .pred_class)
+xgb_holdout_confusion
+autoplot(xgb_holdout_confusion, type = "heatmap")
+```
+
+```{r}
+xgb_per_class <- tibble()
+for (class_level in levels(test_data$damage_grade)) {
+  class_predictions <- tibble(
+    truth = factor(xgb_holdout_predictions$damage_grade == class_level,
+      levels = c(TRUE, FALSE)),
+    estimate = factor(xgb_holdout_predictions$.pred_class == class_level,
+      levels = c(TRUE, FALSE)))
+
+  class_metrics <- tibble(class = class_level,
+    precision = precision(class_predictions, truth, estimate, event_level = "first")$.estimate,
+    recall = recall(class_predictions, truth, estimate, event_level = "first")$.estimate,
+    f1 = f_meas(class_predictions, truth, estimate, event_level = "first")$.estimate)
+  xgb_per_class <- bind_rows(xgb_per_class, class_metrics)
+}
+
+xgb_per_class
+```
+
+## Save Results
+
+```{r}
+results_dir <- here("results", "metrics", "xgboost_final")
+dir.create(results_dir, recursive = TRUE, showWarnings = FALSE)
+testing_dir <- here("testing", "xgboost_final")
+dir.create(testing_dir, recursive = TRUE, showWarnings = FALSE)
+
+saveRDS(best_xgb_parameters, file.path(testing_dir, "best_parameters.rds"))
+write_csv(best_xgb_parameters, file.path(results_dir, "best_parameters.csv"))
+write_csv(xgb_cv_comparison, file.path(results_dir, "cv_metrics.csv"))
+write_csv(xgb_fold_comparison, file.path(testing_dir, "fold_comparison.csv"))
+write_csv(xgb_selected_cv_metrics, file.path(testing_dir, "selected_cv_metrics.csv"))
+write_csv(xgb_cv_confusion_counts, file.path(testing_dir, "cv_confusion_counts.csv"))
+write_csv(xgb_cv_per_class, file.path(results_dir, "cv_per_class_metrics.csv"))
+write_csv(xgb_holdout_metrics, file.path(results_dir, "holdout_metrics.csv"))
+write_csv(xgb_per_class, file.path(results_dir, "per_class_metrics.csv"))
+```
