@@ -85,7 +85,8 @@ weighted_folds <- manual_rset(weighted_splits, ids = folds$id)
 
 weighted_recipe <- recipe(damage_grade ~ ., data = weighted_train) |>
   update_role(building_id, new_role = "id") |>
-  step_rm(has_secondary_use, geo_level_2_id, geo_level_3_id) |>
+  step_rm(has_secondary_use, geo_level_3_id) |>
+  step_mutate(geo_level_2_id = factor(geo_level_2_id)) |>
   step_novel(all_nominal_predictors()) |>
   step_dummy(all_nominal_predictors(), one_hot = FALSE) |>
   step_zv(all_predictors()) |>
@@ -154,15 +155,32 @@ best_xgb_parameters <- select_best(xgb_tune_results, metric = "qwk")
 best_xgb_parameters
 ```
 
+## Selected Model Cross-Validation
+
+```{r}
+best_xgb_workflow <- workflow_xgb_tune |>
+  finalize_workflow(best_xgb_parameters)
+
+plan(sequential)
+set.seed(42)
+xgb_selected_cv <- best_xgb_workflow |>
+  fit_resamples(resamples = weighted_folds, metrics = model_metrics,
+    control = control_resamples(save_pred = TRUE))
+
+collect_notes(xgb_selected_cv)
+xgb_selected_cv_metrics <- collect_metrics(xgb_selected_cv)
+xgb_selected_cv_metrics
+xgb_cv_predictions <- collect_predictions(xgb_selected_cv)
+```
+
 ## Cross-Validation Results
 
 ```{r}
-xgb_tuned_metrics <- xgb_tuning_metrics |>
-  filter(.config == best_xgb_parameters$.config) |>
+xgb_tuned_metrics <- xgb_selected_cv_metrics |>
   select(.metric, .estimator, mean, n, std_err)
 
 xgb_cv_comparison <- bind_rows(xgb_baseline_metrics |> mutate(model = "Unweighted baseline"),
-  xgb_tuned_metrics |> mutate(model = "Mild-weighted Bayesian (depth 2–14)")) |>
+  xgb_tuned_metrics |> mutate(model = "Mild-weighted XGBoost with geo_level_2_id")) |>
   select(model, .metric, mean, std_err)
 
 xgb_cv_comparison |>
@@ -174,8 +192,7 @@ xgb_cv_comparison |>
 baseline_folds <- collect_metrics(xgb_fit_cv, summarize = FALSE) |>
   select(id, .metric, baseline = .estimate)
 
-tuned_folds <- collect_metrics(xgb_tune_results, summarize = FALSE) |>
-  filter(.config == best_xgb_parameters$.config) |>
+tuned_folds <- collect_metrics(xgb_selected_cv, summarize = FALSE) |>
   select(id, .metric, tuned = .estimate)
 
 xgb_fold_comparison <- baseline_folds |>
@@ -185,23 +202,6 @@ xgb_fold_comparison <- baseline_folds |>
 xgb_fold_comparison |>
   group_by(.metric) |>
   summarise(mean_change = mean(change), folds_improved = sum(change > 0), folds_declined = sum(change < 0), .groups = "drop")
-```
-
-## Selected Model Cross-Validation
-
-```{r}
-best_xgb_workflow <- workflow_xgb_tune |>
-  finalize_workflow(best_xgb_parameters)
-
-set.seed(42)
-xgb_selected_cv <- best_xgb_workflow |>
-  fit_resamples(resamples = weighted_folds, metrics = model_metrics,
-    control = control_resamples(save_pred = TRUE))
-
-collect_notes(xgb_selected_cv)
-xgb_selected_cv_metrics <- collect_metrics(xgb_selected_cv)
-xgb_selected_cv_metrics
-xgb_cv_predictions <- collect_predictions(xgb_selected_cv)
 ```
 
 ```{r}

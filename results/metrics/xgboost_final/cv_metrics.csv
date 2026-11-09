@@ -5,9 +5,9 @@ Unweighted baseline,f_macro,0.5874425122288139,0.0017815069292242557
 Unweighted baseline,f_micro,0.6732444276741897,6.803320413734381e-4
 Unweighted baseline,qwk,0.46617439142550415,0.0023339252691272467
 Unweighted baseline,roc_auc,0.8249489943951284,0.0011751372072456975
-Mild-weighted Bayesian (depth 2–14),accuracy,0.6911694060758587,5.282104217423936e-4
-Mild-weighted Bayesian (depth 2–14),bal_accuracy,0.7369207851421276,9.59716623956499e-4
-Mild-weighted Bayesian (depth 2–14),f_macro,0.6543450782634637,0.0012896841371249517
-Mild-weighted Bayesian (depth 2–14),f_micro,0.6911694060758587,5.282104217423936e-4
-Mild-weighted Bayesian (depth 2–14),qwk,0.5680889977057041,0.0014695502333744827
-Mild-weighted Bayesian (depth 2–14),roc_auc,0.8577415785635006,8.597884331069562e-4
+Mild-weighted XGBoost with geo_level_2_id,accuracy,0.7201026232835664,8.399563742208468e-4
+Mild-weighted XGBoost with geo_level_2_id,bal_accuracy,0.7656395246809546,0.0011349790449511775
+Mild-weighted XGBoost with geo_level_2_id,f_macro,0.6866838280873574,0.001288912964616941
+Mild-weighted XGBoost with geo_level_2_id,f_micro,0.7201026232835666,8.399563742208341e-4
+Mild-weighted XGBoost with geo_level_2_id,qwk,0.6123082989341716,0.0019964545061450273
+Mild-weighted XGBoost with geo_level_2_id,roc_auc,0.882728716934023,8.18330724273798e-4
