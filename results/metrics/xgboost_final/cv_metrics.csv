@@ -1,0 +1,13 @@
+model,.metric,mean,std_err
+Unweighted baseline,accuracy,0.6732444276741897,6.803320413734381e-4
+Unweighted baseline,bal_accuracy,0.6650669768705375,0.001130222483193026
+Unweighted baseline,f_macro,0.5874425122288139,0.0017815069292242557
+Unweighted baseline,f_micro,0.6732444276741897,6.803320413734381e-4
+Unweighted baseline,qwk,0.46617439142550415,0.0023339252691272467
+Unweighted baseline,roc_auc,0.8249489943951284,0.0011751372072456975
+Mild-weighted XGBoost with geo_level_2_id,accuracy,0.7201026232835664,8.399563742208468e-4
+Mild-weighted XGBoost with geo_level_2_id,bal_accuracy,0.7656395246809546,0.0011349790449511775
+Mild-weighted XGBoost with geo_level_2_id,f_macro,0.6866838280873574,0.001288912964616941
+Mild-weighted XGBoost with geo_level_2_id,f_micro,0.7201026232835666,8.399563742208341e-4
+Mild-weighted XGBoost with geo_level_2_id,qwk,0.6123082989341716,0.0019964545061450273
+Mild-weighted XGBoost with geo_level_2_id,roc_auc,0.882728716934023,8.18330724273798e-4

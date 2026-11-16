@@ -1,0 +1,135 @@
+---
+title: "Multinomial Logistic Regression"
+author: "Alex Chang"
+format: pdf
+execute:
+  message: false
+  warning: false
+---
+
+
+```{r}
+#| label: setup
+#| include: false
+knitr::opts_knit$set(root.dir = here::here())
+```
+
+```{r}
+#| label: load-data
+#| message: false
+library(tidymodels)
+library(here)
+library(readr)
+
+set.seed(123)
+
+source(here("shared", "02_preprocessing.R"))
+```
+
+```{r}
+#| label: qwk-metric
+qwk <- metric_tweak("qwk", kap, weighting = "quadratic")
+f_macro <- metric_tweak("f_macro", f_meas, estimator = "macro")
+grade_metrics <- metric_set(qwk, accuracy, f_macro, roc_auc)
+```
+
+## Model
+
+```{r}
+#| label: model-spec
+multinomial_spec <- multinom_reg() |>
+  set_engine("nnet") |>
+  set_mode("classification")
+
+log_reg_workflow <- workflow() |>
+  add_model(multinomial_spec) |>
+  add_recipe(base_recipe)
+```
+
+## Cross-validation
+
+```{r}
+#| label: cv-fit
+set.seed(123)
+log_reg_resamples <- fit_resamples(
+  log_reg_workflow,
+  resamples = folds,
+  metrics = grade_metrics,
+  control = control_resamples(save_pred = TRUE)
+)
+
+cv_metrics <- collect_metrics(log_reg_resamples)
+cv_metrics
+```
+
+### Per-class CV metrics
+
+Precision, recall, and F1 for each damage grade use pooled out-of-fold predictions from the shared folds.
+
+```{r}
+#| label: per-class-cv
+cv_pred <- collect_predictions(log_reg_resamples)
+cm_tbl <- conf_mat(cv_pred, damage_grade, estimate = .pred_class)$table
+
+cv_per_class <- map_dfr(rownames(cm_tbl), function(cls) {
+  tp <- cm_tbl[cls, cls]
+  fp <- sum(cm_tbl[cls, ]) - tp
+  fn <- sum(cm_tbl[, cls]) - tp
+  tibble(
+    class = cls,
+    precision = tp / (tp + fp),
+    recall = tp / (tp + fn),
+    f_meas = 2 * tp / (2 * tp + fp + fn)
+  )
+})
+
+cv_per_class
+```
+
+### Save CV results
+
+```{r}
+#| label: save-cv-results
+#| include: false
+metrics_dir <- here("results", "metrics")
+dir.create(metrics_dir, recursive = TRUE, showWarnings = FALSE)
+
+cv_metrics |>
+  mutate(model = "multinomial_logistic") |>
+  write_csv(file.path(metrics_dir, "chang_multinomial_logistic_cv.csv"))
+
+cv_per_class |>
+  mutate(model = "multinomial_logistic") |>
+  write_csv(file.path(metrics_dir, "chang_multinomial_logistic_cv_per_class.csv"))
+```
+
+## Final fit
+
+The final-fit and test-prediction chunks are disabled until everyone has frozen their final model.
+
+```{r}
+#| label: final-fit
+#| eval: false
+# log_reg_last_fit <- last_fit(
+#   log_reg_workflow,
+#   eq_split,
+#   metrics = grade_metrics
+# )
+#
+# collect_metrics(log_reg_last_fit)
+#
+# dir.create(here("results", "models"), showWarnings = FALSE)
+#
+# saveRDS(
+#   extract_workflow(log_reg_last_fit),
+#   here("results", "models", "chang_multinomial_logistic.rds")
+# )
+```
+
+```{r}
+#| label: test-predictions
+#| eval: false
+# test_pred <- collect_predictions(log_reg_last_fit)
+#
+# conf_mat(test_pred, damage_grade, estimate = .pred_class)
+```
