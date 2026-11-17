@@ -35,3 +35,20 @@ A repository for the Fa26 UVA DS6030 Group 6 final project, predicting the level
         ├── figures/
         └── reports/
 ```
+
+## Elastic-net project update
+
+Gina Mancuso's locked training-only elastic-net candidate is implemented in:
+
+- `models/mancuso_geographic_elastic_net_candidate.R` — final multinomial
+  candidate and optional, explicitly gated holdout evaluation.
+- `models/mancuso_geography_helpers.R` — fold-safe class weighting, smoothed
+  geographic encoding, preprocessing, and metrics.
+- `models/mancuso_ordinal_elastic_net_experiment.R` — ordinal sensitivity
+  analysis used to check the multinomial formulation.
+
+The combined code document, `shared/Project-1_group6.qmd`, includes the
+elastic-net configuration, reproduction calls, saved out-of-fold metrics, and
+figure. Detailed CSV outputs are stored in `results/metrics/`, and selected
+figures are stored in `results/figures/`. The reported candidate metrics are
+from five-fold cross-validation on the training set, not the final holdout.
