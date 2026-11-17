@@ -1,3 +1,14 @@
+---
+title: "DS 6030 Progress Report Code"
+subtitle: "Richter's Predictor: Modeling Earthquake Damage"
+author: "Group 6"
+format: html
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
 Group 6 
 
 Project 3: Richter Earthquake 
@@ -35,7 +46,7 @@ stopifnot(nrow(data) == nrow(values_raw))
 saveRDS(data, here("data", "processed", "earthquake.rds"))
 ```
 
-``` {r preprocessing}
+```{r preprocessing}
 
 # --- PREPROCESSING ------------------------------------------------------------
 
@@ -79,7 +90,7 @@ base_recipe <- recipe(damage_grade ~ ., data = train_data) |>
   step_normalize(all_numeric_predictors())
 ```
 
-``` {r save_split_data}
+```{r save_split_data}
 
 # --- SAVE OBJECTS -------------------------------------------------------------
 
@@ -93,7 +104,7 @@ base_recipe <- recipe(damage_grade ~ ., data = train_data) |>
 #)
 ```
 
-``` {r eda}
+```{r eda}
 #| warning: FALSE
 
 # --- EDA CODE -----------------------------------------------------------------
@@ -263,4 +274,83 @@ ggplot(secondary_plot, aes(x = has_feature, y = percent, fill = damage_grade)) +
   scale_fill_manual(values = c("#9ECAE1", "#4292C6", "#084594")) +
   labs(title = "Damage Grade by Selected Secondary Use",
     x = "Has Feature", y = "Percent of Buildings", fill = "Damage Grade")
+```
+
+# Elastic Net — Gina Mancuso
+
+The elastic-net work is organized into three scripts so that the leakage-safe
+geographic encoding can be reused and the final candidate remains separate
+from the ordinal sensitivity analysis:
+
+- `models/mancuso_geography_helpers.R` defines fold-safe class weights,
+  smoothed geographic encodings, preprocessing, and evaluation metrics.
+- `models/mancuso_geographic_elastic_net_candidate.R` fits the locked
+  multinomial candidate using five-fold stratified cross-validation.
+- `models/mancuso_ordinal_elastic_net_experiment.R` evaluates an explicitly
+  ordinal alternative as a training-only sensitivity analysis.
+
+The candidate uses moderate square-root inverse-frequency class weights,
+smoothed encodings of `geo_level_2_id` and `geo_level_3_id`, a penalty of
+0.003, a mixture of 0.50, and geographic smoothing strength of 10. All
+outcome-informed transformations are estimated inside each analysis fold and
+then applied to its assessment fold. The final holdout is not accessed unless
+`evaluate_holdout` is deliberately changed from `FALSE` in the candidate
+script.
+
+## Reproducing the elastic-net analyses
+
+The following calls are intentionally not executed during routine rendering
+because they refit the models. The complete implementation is retained in the
+referenced scripts rather than duplicated inside this group document.
+
+```{r elastic_net_final_candidate}
+#| eval: false
+
+source(here("models", "mancuso_geographic_elastic_net_candidate.R"))
+```
+
+```{r elastic_net_ordinal_sensitivity}
+#| eval: false
+
+source(here("models", "mancuso_ordinal_elastic_net_experiment.R"))
+```
+
+## Saved training-set cross-validation results
+
+These tables contain out-of-fold predictions from the training set. They are
+not final holdout results.
+
+```{r elastic_net_saved_results}
+elastic_net_overall <- read_csv(
+  here("results", "metrics", "elastic_net_geographic_candidate_oof_metrics.csv"),
+  show_col_types = FALSE
+)
+
+elastic_net_by_class <- read_csv(
+  here("results", "metrics", "elastic_net_geographic_candidate_oof_per_class.csv"),
+  show_col_types = FALSE
+)
+
+elastic_net_parameters <- read_csv(
+  here("results", "metrics", "elastic_net_geographic_candidate_parameters.csv"),
+  show_col_types = FALSE
+)
+
+elastic_net_overall
+elastic_net_by_class
+elastic_net_parameters
+```
+
+The selected multinomial candidate achieved QWK = 0.6125, accuracy = 0.7249,
+macro F1 = 0.6857, and macro recall = 0.6984. The ordinal sensitivity model
+achieved a lower QWK of 0.6019 and did not improve QWK in any of the five
+paired validation folds, so the multinomial formulation was retained.
+
+```{r elastic_net_figures}
+#| fig-cap: "Elastic-net out-of-fold class-specific metrics."
+#| out-width: "80%"
+
+knitr::include_graphics(
+  here("results", "figures", "elastic_net_geographic_candidate_class_metrics.png")
+)
 ```

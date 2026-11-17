@@ -1,0 +1,2 @@
+model_family,weight_power,smoothing_strength,inner_encoding_folds,outer_validation_folds,mixture,selected_penalty,holdout_accessed,holdout_evaluated
+parallel cumulative logit,0.5,10,5,5,0.5,0.003,FALSE,FALSE
