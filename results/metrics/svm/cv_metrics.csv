@@ -1,0 +1,13 @@
+model,.metric,mean,std_err
+Unweighted baseline,accuracy,0.6274762191279182,0.0015266602252712864
+Unweighted baseline,bal_accuracy,0.5589536905739985,5.391059874002244e-4
+Unweighted baseline,f_macro,0.5538886087832666,0.001637625357994425
+Unweighted baseline,f_micro,0.6274762191279182,0.0015266602252712864
+Unweighted baseline,qwk,0.21920183588549008,0.0036280211249610636
+Unweighted baseline,roc_auc,0.7740736310543591,5.88506516563711e-4
+"Class-weighted POLY SVM (cost 3.86, scale_factor 1.73e-05)",accuracy,0.6214809002198968,0.0026159317414178027
+"Class-weighted POLY SVM (cost 3.86, scale_factor 1.73e-05)",bal_accuracy,0.6882485827693218,0.003451720655330132
+"Class-weighted POLY SVM (cost 3.86, scale_factor 1.73e-05)",f_macro,0.5733096755991647,0.003251836935105902
+"Class-weighted POLY SVM (cost 3.86, scale_factor 1.73e-05)",f_micro,0.6214809002198968,0.0026159317414178027
+"Class-weighted POLY SVM (cost 3.86, scale_factor 1.73e-05)",qwk,0.47756656367872924,0.006563174510588677
+"Class-weighted POLY SVM (cost 3.86, scale_factor 1.73e-05)",roc_auc,0.8004236319173561,0.0015046087228857395
