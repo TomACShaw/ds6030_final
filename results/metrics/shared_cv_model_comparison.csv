@@ -1,0 +1,6 @@
+model,qwk,macro_f1,accuracy,macro_recall,status
+Geographic elastic net,0.612478,0.685660,0.724914,0.698351,Complete
+Mild-weighted XGBoost with geo_level_2_id,0.612308,0.686684,0.720103,0.702411,Complete
+Class-weighted polynomial SVM,0.477567,0.573310,0.621481,0.603034,Complete
+Multinomial logistic regression,0.465552,0.573473,0.668515,0.544202,Complete
+Random forest,,,,,Pending committed cross-validation metrics

@@ -1260,3 +1260,42 @@ report_metrics
 summarise_cv(cv_preds, "check") 
 read_csv(file.path(output_dir, "cv_metrics.csv"))
 ```
+
+# Shared Cross-Validation Comparison
+
+The table below compares the frozen candidate models using training-set
+cross-validation results only. Quadratic weighted kappa (QWK) is the primary
+selection metric. Macro F1 and macro recall provide supporting evidence about
+performance across all three damage classes, while accuracy summarizes overall
+classification performance.
+
+```{r}
+#| label: shared-cv-model-comparison
+#| echo: false
+
+cv_model_comparison <- readr::read_csv(
+  here::here("results", "metrics", "shared_cv_model_comparison.csv"),
+  show_col_types = FALSE
+)
+
+cv_model_comparison |>
+  dplyr::mutate(
+    dplyr::across(
+      c(qwk, macro_f1, accuracy, macro_recall),
+      ~ scales::number(.x, accuracy = 0.0001)
+    )
+  ) |>
+  knitr::kable(
+    col.names = c(
+      "Model", "QWK", "Macro F1", "Accuracy", "Macro Recall", "Status"
+    ),
+    caption = "Five-fold training cross-validation comparison of frozen model candidates."
+  )
+```
+
+The geographic elastic net and XGBoost currently have nearly identical QWK
+values. The difference is too small to treat either model as clearly superior
+without considering variation across folds and class-specific performance.
+Random-forest results remain pending because comparable cross-validation
+metrics have not yet been committed to the repository. No holdout results are
+used in this comparison or for final candidate selection.
